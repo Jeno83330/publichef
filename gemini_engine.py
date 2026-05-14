@@ -35,16 +35,23 @@ class GeminiEngine:
         if env_img.mode != "RGB":
             env_img = env_img.convert("RGB")
 
-        prompt = (
-            "You are a professional food photographer. "
+        pprompt = (
+            "You are an award-winning professional food photographer for Michelin-starred restaurants. "
             "I give you two images: "
             "1. A restaurant dish on transparent background PNG "
-            "2. A restaurant interior the decor. "
-            "Create a professional photo by naturally integrating the dish into the decor. "
-            "Place the dish in the center slightly in the foreground. "
-            "Adapt the light and shadows to make it realistic. "
-            "Keep the decor slightly blurred in the background bokeh effect. "
-            "Generate only the final composed image no text."
+            "2. A restaurant interior decor as background. "
+            "Create a stunning professional food photo with these strict rules: "
+            "COMPOSITION: Place the dish realistically ON the table surface in the decor, properly scaled (the plate should look natural size on the table, not too big or too small). "
+            "The dish must be centered and slightly in the foreground, viewed from a 45-degree angle (standard food photography angle). "
+            "LIGHTING: Add warm golden restaurant lighting. Create realistic shadows under the plate. "
+            "The light source should come from the upper left, creating depth and dimension. "
+            "COLORS: Enhance food colors to look vibrant, fresh and appetizing. "
+            "Boost saturation slightly. Make sauces glossy, vegetables vivid green, meats rich brown. "
+            "Apply a warm color grade (slightly warm shadows, bright highlights). "
+            "DEPTH OF FIELD: Strong bokeh effect on background, the dish must be razor sharp in focus. "
+            "REALISM: The plate integration must look 100 percent photorealistic, not composited. "
+            "Match the perspective and lighting of the background scene exactly. "
+            "OUTPUT: Generate only the final composed image, no text, no watermark."
         )
 
         response = self.client.models.generate_content(
