@@ -184,7 +184,33 @@ def generate_v2():
     except Exception as e:
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
+@app.route("/get_decors")
+def get_decors():
+    from decor_manager import get_all_decors_b64
+    return jsonify(get_all_decors_b64())
 
+
+@app.route("/save_decor/<decor_name>", methods=["POST"])
+def save_decor_route(decor_name):
+    from decor_manager import save_decor, get_all_decors_b64
+    if "image" not in request.files:
+        return jsonify({"error": "Pas d'image"}), 400
+    file = request.files["image"]
+    raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
+    jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+    file.stream.seek(0)
+    with open(str(raw_path), "wb") as f:
+        f.write(file.stream.read())
+    convert_to_jpg(raw_path, jpg_path)
+    save_decor(decor_name, jpg_path)
+    return jsonify({"success": True, "decors": get_all_decors_b64()})
+
+
+@app.route("/delete_decor/<decor_name>", methods=["DELETE"])
+def delete_decor_route(decor_name):
+    from decor_manager import delete_decor, get_all_decors_b64
+    delete_decor(decor_name)
+    return jsonify({"success": True, "decors": get_all_decors_b64()})
 if __name__ == "__main__":
     print("\nPubliChef V2 - Interface Web")
     print("=" * 40)

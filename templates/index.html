@@ -20,7 +20,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--white); min-height: 100vh; max-width: 480px; margin: 0 auto; }
   header { padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
-  .logo img { height: 44px; border-radius: 8px; display: block; }
+  .logo img { height: 44px; width: auto; max-width: 160px; border-radius: 8px; display: block; }
   .step-indicator { display: flex; gap: 6px; align-items: center; }
   .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
   .step-dot.active { background: var(--gold); width: 20px; border-radius: 4px; }
@@ -49,6 +49,8 @@
   .decor-option .decor-name { font-size: 13px; font-weight: 500; }
   .decor-option.locked { opacity: 0.4; cursor: not-allowed; }
   .decor-option .lock-badge { font-size: 10px; color: var(--gray); margin-top: 4px; }
+  .decor-modify-btn { background: rgba(245,200,66,0.15); border: 1px solid var(--gold); color: var(--gold); padding: 4px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; margin-top: 6px; width: 100%; }
+  .decor-modify-btn:hover { background: var(--gold); color: #000; }
   .btn-primary { background: var(--gold); color: #000; border: none; padding: 18px; border-radius: 16px; font-size: 16px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
@@ -121,14 +123,28 @@
   </div>
   <div class="decor-section">
     <div class="section-label">Choisir un decor</div>
-    <div class="decor-grid">
+    <div class="decor-grid" id="decorGrid">
       <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
-        <span class="decor-icon">🏛️</span>
-        <div class="decor-name">Salle du restaurant</div>
+        <div id="decor-preview-salle" style="display:none;">
+          <img id="decor-img-salle" src="" alt="" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Salle du restaurant</div>
+          <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier</button>
+        </div>
+        <div id="decor-placeholder-salle">
+          <span class="decor-icon">🏛️</span>
+          <div class="decor-name">Salle du restaurant</div>
+        </div>
       </div>
       <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
-        <span class="decor-icon">🌿</span>
-        <div class="decor-name">Terrasse</div>
+        <div id="decor-preview-terrasse" style="display:none;">
+          <img id="decor-img-terrasse" src="" alt="" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Terrasse</div>
+          <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier</button>
+        </div>
+        <div id="decor-placeholder-terrasse">
+          <span class="decor-icon">🌿</span>
+          <div class="decor-name">Terrasse</div>
+        </div>
       </div>
       <div class="decor-option locked">
         <span class="decor-icon">🔒</span>
@@ -141,6 +157,7 @@
         <div class="lock-badge">Option Pro</div>
       </div>
     </div>
+    <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
   </div>
   <div class="upload-card" id="envCard">
     <input type="file" id="envInput" accept="image/*">
@@ -246,6 +263,51 @@
 
 <script>
   let dishFile = null, envFile = null, selectedDecor = 'salle';
+  let savedDecors = {};
+  let modifyingDecor = null;
+
+  loadSavedDecors();
+
+  async function loadSavedDecors() {
+    try {
+      const res = await fetch('/get_decors');
+      savedDecors = await res.json();
+      updateDecorPreviews();
+      checkReady();
+    } catch(e) {}
+  }
+
+  function updateDecorPreviews() {
+    ['salle', 'terrasse'].forEach(name => {
+      if (savedDecors[name]) {
+        document.getElementById(`decor-preview-${name}`).style.display = 'block';
+        document.getElementById(`decor-placeholder-${name}`).style.display = 'none';
+        document.getElementById(`decor-img-${name}`).src = savedDecors[name];
+      } else {
+        document.getElementById(`decor-preview-${name}`).style.display = 'none';
+        document.getElementById(`decor-placeholder-${name}`).style.display = 'block';
+      }
+    });
+  }
+
+  function modifyDecor(event, decorName) {
+    event.stopPropagation();
+    modifyingDecor = decorName;
+    document.getElementById('decorModifyInput').click();
+  }
+
+  document.getElementById('decorModifyInput').addEventListener('change', async function() {
+    if (!this.files[0] || !modifyingDecor) return;
+    const formData = new FormData();
+    formData.append('image', this.files[0]);
+    const res = await fetch(`/save_decor/${modifyingDecor}`, { method: 'POST', body: formData });
+    const data = await res.json();
+    savedDecors = data.decors;
+    updateDecorPreviews();
+    checkReady();
+    this.value = '';
+    modifyingDecor = null;
+  });
 
   document.getElementById('dishInput').addEventListener('change', function() {
     if (this.files[0]) {
@@ -272,10 +334,12 @@
     document.querySelectorAll('.decor-option').forEach(d => d.classList.remove('selected'));
     el.classList.add('selected');
     selectedDecor = el.dataset.decor;
+    checkReady();
   }
 
   function checkReady() {
-    document.getElementById('btnGenerate').disabled = !(dishFile && envFile);
+    const hasEnv = envFile || savedDecors[selectedDecor];
+    document.getElementById('btnGenerate').disabled = !(dishFile && hasEnv);
   }
 
   const stepMessages = ["Detourage du plat...","Composition dans le decor...","Analyse IA du plat...","Redaction des legendes...","Generation des hashtags..."];
@@ -300,12 +364,18 @@
   async function startGeneration() {
     const error1 = document.getElementById('error1');
     error1.style.display = 'none';
-    if (!dishFile || !envFile) { error1.textContent = 'Veuillez uploader les deux photos'; error1.style.display = 'block'; return; }
+    if (!dishFile) { error1.textContent = 'Veuillez uploader la photo du plat'; error1.style.display = 'block'; return; }
+    if (!envFile && !savedDecors[selectedDecor]) { error1.textContent = 'Veuillez uploader une photo de decor'; error1.style.display = 'block'; return; }
     showScreen('loading');
     const stepInterval = animateSteps();
     const formData = new FormData();
     formData.append('dish', dishFile);
-    formData.append('environment', envFile);
+    if (envFile) {
+      formData.append('environment', envFile);
+    } else {
+      const blob = await fetch(savedDecors[selectedDecor]).then(r => r.blob());
+      formData.append('environment', blob, 'env.jpg');
+    }
     formData.append('decor', selectedDecor);
     try {
       const response = await fetch('/generate_v2', { method: 'POST', body: formData });
@@ -366,11 +436,11 @@
     document.getElementById('envInput').value = '';
     document.getElementById('dishCard').classList.remove('has-image');
     document.getElementById('envCard').classList.remove('has-image');
-    document.getElementById('btnGenerate').disabled = true;
     document.querySelectorAll('.loading-step-item').forEach((s,i) => {
       s.classList.remove('active', 'done');
       s.querySelector('.step-check').textContent = i+1;
     });
+    checkReady();
     goCapture();
   }
 
