@@ -1,0 +1,11 @@
+venv/
+.env
+__pycache__/
+uploads/
+history/
+*.pyc
+.DS_Store
+*.png
+*.jpg
+*.jpeg
+*.heic
