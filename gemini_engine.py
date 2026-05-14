@@ -30,10 +30,9 @@ class GeminiEngine:
         dish_img = Image.open(dish_path)
         env_img = Image.open(environment_path)
 
-        if dish_img.mode != "RGBA":
-            dish_img = dish_img.convert("RGBA")
-        if env_img.mode != "RGB":
-            env_img = env_img.convert("RGB")
+      MAX_SIZE = (1024, 1024)
+        dish_img.thumbnail(MAX_SIZE, Image.LANCZOS)
+        env_img.thumbnail(MAX_SIZE, Image.LANCZOS) Image.LANCZOS)
 
         prompt = (
             "You are the world's best food photographer, shooting for a 3-Michelin-star restaurant cookbook. "
