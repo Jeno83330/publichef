@@ -1,6 +1,6 @@
-flask==3.1.3
-python-dotenv==1.2.1
-anthropic==0.102.0
-google-genai==1.47.0
-Pillow==11.3.0
-requests==2.32.5
+flask
+python-dotenv
+anthropic
+google-genai
+Pillow
+requests
