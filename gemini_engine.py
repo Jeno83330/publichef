@@ -39,43 +39,84 @@ class GeminiEngine:
         dish_img.thumbnail(MAX_SIZE, Image.LANCZOS)
         env_img.thumbnail(MAX_SIZE, Image.LANCZOS)
 
-        prompt = (
-            "You are the world best food photographer, shooting for a 3-Michelin-star restaurant cookbook. "
+        enhance_prompt = (
+            "You are both a Michelin 3-star chef and a world-class food photographer and retoucher. "
+            "I give you a dish photo on transparent background. "
+            "YOUR MISSION: Sublimate this dish while keeping it 100 percent RECOGNIZABLE. Same dish, same ingredients, same plate. "
+            "STEP 1 - DRESSING IMPROVEMENT: "
+            "Slightly improve the plating presentation like a professional chef would. "
+            "Straighten elements, add a touch of elegance, make it look meticulously plated. "
+            "Small precise adjustments only: better positioning of garnishes, cleaner sauce placement, "
+            "more appetizing arrangement of ingredients. Do NOT completely change the dish. "
+            "The person must recognize their dish but think WOW it looks so much better. "
+            "STEP 2 - PROFESSIONAL COLOR AND TEXTURE ENHANCEMENT: "
+            "Meats: rich brown caramelization, visible appetizing texture, beautiful crust. "
+            "Vegetables: vivid fresh colors, crisp and bright. "
+            "Sauces: glossy, shiny, professional restaurant finish. "
+            "Garnishes: perfectly placed, elegant, fresh. "
+            "Plate: clean edges, no smudges, pristine presentation. "
+            "STEP 3 - LIGHTING AND RETOUCHING: "
+            "Add warm professional food photography lighting with beautiful highlights. "
+            "Boost contrast by 20 percent for a magazine look. "
+            "Boost saturation by 15 percent to make food colors pop. "
+            "Add subtle specular highlights to make food look fresh and appetizing. "
+            "RESULT: A stunning Michelin-quality dish photo that looks professionally shot and plated. "
+            "Keep the transparent background intact. Return ONLY the enhanced dish image, no text."
+        )
+
+        enhance_response = self.client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[enhance_prompt, dish_img],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+                temperature=0.3
+            )
+        )
+
+        for part in enhance_response.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.data:
+                enhanced_dish_path = output_dir / "enhanced_dish_temp.png"
+                enhanced_dish_path.write_bytes(part.inline_data.data)
+                dish_img = Image.open(enhanced_dish_path)
+                if dish_img.mode != "RGBA":
+                    dish_img = dish_img.convert("RGBA")
+                break
+
+        compose_prompt = (
+            "You are the world best food photographer shooting for a 3-Michelin-star restaurant cookbook. "
             "I give you TWO images: "
-            "Image 1: a dish on transparent background PNG. "
+            "Image 1: a professionally retouched dish on transparent background PNG. "
             "Image 2: a real restaurant interior as background scene. "
-            "YOUR MISSION: Create a stunning, magazine-quality food photograph by perfectly compositing the dish into the scene. The plate MUST appear to physically rest ON the table surface with full contact, NO floating, NO gap between plate bottom and table. "
+            "YOUR MISSION: Create a stunning magazine-quality food photograph by compositing the dish into the scene. "
             "PERSPECTIVE AND PLACEMENT CRITICAL: "
             "Carefully analyze the exact vanishing point, horizon line and camera angle of the background table. "
             "The plate MUST be perfectly perspective-corrected to match the table surface angle exactly. "
-            "Place the plate directly ON the table, touching the surface naturally, never floating. "
+            "The plate MUST physically rest ON the table surface with FULL CONTACT, absolutely NO floating, NO gap between plate bottom and table. "
+            "The plate bottom edge must touch and slightly compress against the table surface to look real. "
             "Scale: a dinner plate is 28cm diameter, scale it correctly relative to visible table elements. "
             "Position: center-frame, slightly forward, like a hero shot. "
             "LIGHTING AND SHADOWS CRITICAL: "
             "Identify the main light source direction in the background photo. "
-            "Add a soft, realistic shadow directly under the plate edge matching that light direction. "
-            "Add subtle ambient occlusion where plate meets table. "
-            "The food should have beautiful specular highlights making it look fresh and appetizing. "
-            "COLOR GRADING CRITICAL: "
+            "Add a soft realistic shadow directly under the plate matching that light direction. "
+            "Add subtle ambient occlusion where plate meets table surface. "
+            "The food should have beautiful specular highlights. "
+            "COLOR GRADING: "
             "Apply professional food photography color grading: warm shadows, bright highlights. "
-            "Boost food colors: meat should look rich and brown, vegetables vivid green, sauces glossy. "
-            "Overall warmth: add a golden hour feel, like shooting near a window at sunset. "
-            "Contrast: boost by 25 percent for a magazine look. Saturation: boost food colors by 20 percent. "
-            "The final image should look like it was shot on a Hasselblad medium format camera. "
+            "Overall warmth: golden hour feel. "
+            "Contrast boost 25 percent for magazine look. "
             "DEPTH OF FIELD: "
-            "The dish must be razor sharp, tack-focused. "
+            "The dish must be razor sharp and tack-focused. "
             "Background blurred with beautiful smooth bokeh. "
-            "Transition from sharp to blur should be gradual and natural. "
             "QUALITY STANDARD: "
             "Zero compositing artifacts, zero hard edges around the plate. "
             "The result must be indistinguishable from a real photograph taken on location. "
-            "Think: this image will appear on the cover of a Michelin restaurant guide. "
-            "OUTPUT: Return ONLY the final composite photograph. No text, no watermark, no border, no explanation."
+            "This image will appear on the cover of a Michelin restaurant guide. "
+            "OUTPUT: Return ONLY the final composite photograph. No text, no watermark, no border."
         )
 
         response = self.client.models.generate_content(
             model="gemini-2.5-flash-image",
-            contents=[prompt, dish_img, env_img],
+            contents=[compose_prompt, dish_img, env_img],
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
                 temperature=0.4
