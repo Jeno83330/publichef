@@ -35,7 +35,7 @@ class GeminiEngine:
         if env_img.mode != "RGB":
             env_img = env_img.convert("RGB")
 
-        pprompt = (
+        prompt = (
             "You are an award-winning professional food photographer for Michelin-starred restaurants. "
             "I give you two images: "
             "1. A restaurant dish on transparent background PNG "
