@@ -65,7 +65,7 @@ class GeminiEngine:
         )
 
         enhance_response = self.client.models.generate_content(
-            model="gemini-2.5-flash-image",
+            model="gemini-2.0-flash-exp",
             contents=[enhance_prompt, dish_img],
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
@@ -115,7 +115,7 @@ class GeminiEngine:
         )
 
         response = self.client.models.generate_content(
-            model="gemini-2.5-flash-image",
+            model="gemini-2.0-flash-exp",
             contents=[compose_prompt, dish_img, env_img],
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
