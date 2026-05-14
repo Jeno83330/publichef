@@ -7,6 +7,7 @@ import io
 import base64
 import shutil
 import traceback
+import gc
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -74,6 +75,8 @@ def generate():
 
         processor = ImageProcessor()
         enhanced_path = processor.enhance(jpg_path)
+        del processor
+        gc.collect()
 
         with Image.open(enhanced_path) as img:
             quality = 85
@@ -85,12 +88,17 @@ def generate():
                 quality -= 10
             compressed = buffer.getvalue()
 
+        gc.collect()
+
         ai = AIEngine()
         img_b64 = base64.b64encode(compressed).decode("utf-8")
+        del compressed
         description = ai.describe_dish_from_bytes(img_b64)
         instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
+        del ai
+        gc.collect()
 
         from history_manager import save_post
         save_post(enhanced_path, description, instagram, facebook, hashtags)
@@ -105,6 +113,7 @@ def generate():
         })
 
     except Exception as e:
+        gc.collect()
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
@@ -140,15 +149,21 @@ def generate_v2():
 
         processor = ImageProcessor()
         enhanced_dish = processor.enhance(dish_jpg)
+        del processor
+        gc.collect()
 
         clipdrop = ClipdropEngine()
         detoured_path = clipdrop.remove_background(enhanced_dish)
+        del clipdrop
+        gc.collect()
 
         gemini = GeminiEngine()
         composed_path = gemini.compose_dish_in_environment(
             detoured_path,
             env_jpg
         )
+        del gemini
+        gc.collect()
 
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
@@ -162,12 +177,17 @@ def generate_v2():
                 quality -= 10
             compressed = buffer.getvalue()
 
+        gc.collect()
+
         ai = AIEngine()
         img_b64 = base64.b64encode(compressed).decode("utf-8")
+        del compressed
         description = ai.describe_dish_from_bytes(img_b64)
         instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
+        del ai
+        gc.collect()
 
         from history_manager import save_post
         save_post(composed_path, description, instagram, facebook, hashtags)
@@ -182,7 +202,9 @@ def generate_v2():
         })
 
     except Exception as e:
+        gc.collect()
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
 
 @app.route("/get_decors")
 def get_decors():
@@ -211,6 +233,8 @@ def delete_decor_route(decor_name):
     from decor_manager import delete_decor, get_all_decors_b64
     delete_decor(decor_name)
     return jsonify({"success": True, "decors": get_all_decors_b64()})
+
+
 if __name__ == "__main__":
     print("\nPubliChef V2 - Interface Web")
     print("=" * 40)
