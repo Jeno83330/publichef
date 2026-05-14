@@ -30,9 +30,14 @@ class GeminiEngine:
         dish_img = Image.open(dish_path)
         env_img = Image.open(environment_path)
 
-      MAX_SIZE = (1024, 1024)
+        if dish_img.mode != "RGBA":
+            dish_img = dish_img.convert("RGBA")
+        if env_img.mode != "RGB":
+            env_img = env_img.convert("RGB")
+
+        MAX_SIZE = (1024, 1024)
         dish_img.thumbnail(MAX_SIZE, Image.LANCZOS)
-        env_img.thumbnail(MAX_SIZE, Image.LANCZOS) Image.LANCZOS)
+        env_img.thumbnail(MAX_SIZE, Image.LANCZOS)
 
         prompt = (
             "You are the world's best food photographer, shooting for a 3-Michelin-star restaurant cookbook. "
@@ -40,37 +45,31 @@ class GeminiEngine:
             "Image 1: a dish on transparent background PNG. "
             "Image 2: a real restaurant interior as background scene. "
             "YOUR MISSION: Create a stunning, magazine-quality food photograph by perfectly compositing the dish into the scene. "
-            ""
             "PERSPECTIVE & PLACEMENT (CRITICAL): "
             "- Carefully analyze the exact vanishing point, horizon line and camera angle of the background table. "
             "- The plate MUST be perfectly perspective-corrected to match the table surface angle exactly. "
             "- Place the plate directly ON the table, touching the surface naturally, never floating. "
             "- Scale: a dinner plate is 28cm diameter - scale it correctly relative to visible table elements. "
             "- Position: center-frame, slightly forward, like a hero shot. "
-            ""
             "LIGHTING & SHADOWS (CRITICAL): "
             "- Identify the main light source direction in the background photo. "
             "- Add a soft, realistic shadow directly under the plate edge matching that light direction. "
             "- Add subtle ambient occlusion where plate meets table. "
             "- The food should have beautiful specular highlights making it look fresh and appetizing. "
-            ""
             "COLOR GRADING (CRITICAL): "
             "- Apply professional food photography color grading: warm shadows, bright highlights. "
             "- Boost food colors: meat should look rich and brown, vegetables vivid green, sauces glossy. "
             "- Overall warmth: add a golden hour feel, like shooting near a window at sunset. "
             "- Contrast: boost by 25 percent for a magazine look. Saturation: boost food colors by 20 percent. "
             "- The final image should look like it was shot on a Hasselblad medium format camera. "
-            ""
             "DEPTH OF FIELD: "
             "- The dish must be razor sharp, tack-focused. "
             "- Background blurred with beautiful smooth bokeh. "
             "- Transition from sharp to blur should be gradual and natural. "
-            ""
             "QUALITY STANDARD: "
             "- Zero compositing artifacts, zero hard edges around the plate. "
             "- The result must be indistinguishable from a real photograph taken on location. "
             "- Think: this image will appear on the cover of a Michelin restaurant guide. "
-            ""
             "OUTPUT: Return ONLY the final composite photograph. No text, no watermark, no border, no explanation."
         )
 
