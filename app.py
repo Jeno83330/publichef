@@ -6,10 +6,9 @@ import os
 import io
 import base64
 import shutil
-import subprocess
 import traceback
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from PIL import Image
 
@@ -18,6 +17,16 @@ load_dotenv()
 app = Flask(__name__)
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+
+def convert_to_jpg(src, dst):
+    try:
+        with Image.open(str(src)) as im:
+            if im.mode != "RGB":
+                im = im.convert("RGB")
+            im.save(str(dst), "JPEG")
+    except Exception:
+        shutil.copy(str(src), str(dst))
 
 
 @app.route("/")
@@ -58,12 +67,7 @@ def generate():
     file.save(str(input_path))
 
     try:
-        subprocess.run(
-            ["sips", "-s", "format", "jpeg", str(input_path), "--out", str(jpg_path)],
-            capture_output=True
-        )
-        if not jpg_path.exists():
-            shutil.copy(str(input_path), str(jpg_path))
+        convert_to_jpg(input_path, jpg_path)
 
         from ai_engine import AIEngine
         from image_processor import ImageProcessor
@@ -125,13 +129,8 @@ def generate_v2():
     with open(str(env_raw), "wb") as f:
         f.write(env_file.stream.read())
 
-    for src, dst in [(dish_raw, dish_jpg), (env_raw, env_jpg)]:
-        subprocess.run(
-            ["sips", "-s", "format", "jpeg", str(src), "--out", str(dst)],
-            capture_output=True
-        )
-        if not dst.exists():
-            shutil.copy(str(src), str(dst))
+    convert_to_jpg(dish_raw, dish_jpg)
+    convert_to_jpg(env_raw, env_jpg)
 
     try:
         from image_processor import ImageProcessor
@@ -187,9 +186,9 @@ def generate_v2():
 
 
 if __name__ == "__main__":
-    print("\n🍽️  PubliChef V2 — Interface Web")
+    print("\nPubliChef V2 - Interface Web")
     print("=" * 40)
-    print("✅ Ouvre ton navigateur sur :")
+    print("Ouvre ton navigateur sur :")
     print("   http://127.0.0.1:5000")
     print("=" * 40 + "\n")
-    app.run(debug=True, port=5000, host="0.0.0.0")
+    app.run(debug=False, port=5000, host="0.0.0.0")
