@@ -44,7 +44,7 @@ class GeminiEngine:
             "I give you TWO images: "
             "Image 1: a dish on transparent background PNG. "
             "Image 2: a real restaurant interior as background scene. "
-            "YOUR MISSION: Create a stunning, magazine-quality food photograph by perfectly compositing the dish into the scene. "
+            "YOUR MISSION: Create a stunning, magazine-quality food photograph by perfectly compositing the dish into the scene. The plate MUST appear to physically rest ON the table surface with full contact, NO floating, NO gap between plate bottom and table. "
             "PERSPECTIVE AND PLACEMENT CRITICAL: "
             "Carefully analyze the exact vanishing point, horizon line and camera angle of the background table. "
             "The plate MUST be perfectly perspective-corrected to match the table surface angle exactly. "
