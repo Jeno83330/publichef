@@ -79,7 +79,11 @@
   .platform-icon.ig { background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); }
   .platform-icon.fb { background: #1877F2; }
   .platform-name { font-size: 13px; font-weight: 600; }
-  .caption-text { font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.85); white-space: pre-wrap; }
+  .caption-text { font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.85); white-space: pre-wrap; }.caption-text[contenteditable="true"] { outline: 1px solid rgba(245,200,66,0.3); border-radius: 8px; padding: 4px; cursor: text; }
+.caption-text[contenteditable="true"]:focus { outline: 1px solid var(--gold); }
+.edit-btn { position: absolute; bottom: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+.edit-btn:hover { background: var(--gold); color: #000; }
+.edit-btn.editing { background: var(--success); border-color: var(--success); color: white; }
   .copy-btn { position: absolute; top: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
   .copy-btn:hover, .copy-btn.copied { background: var(--gold); color: #000; }
   .hashtags-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -200,6 +204,7 @@
   <div class="result-content active" id="tab-instagram">
     <div class="caption-box">
       <button class="copy-btn" onclick="copyText('igText', this)">Copier</button>
+      <button class="edit-btn" id="edit-ig" onclick="toggleEdit('igText', this)">Modifier</button>
       <div class="caption-platform"><div class="platform-icon ig">📱</div><div class="platform-name">Instagram</div></div>
       <div class="caption-text" id="igText"></div>
     </div>
@@ -207,6 +212,7 @@
   <div class="result-content" id="tab-facebook">
     <div class="caption-box">
       <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
+      <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
       <div class="caption-platform"><div class="platform-icon fb">👥</div><div class="platform-name">Facebook</div></div>
       <div class="caption-text" id="fbText"></div>
     </div>
@@ -214,7 +220,9 @@
   <div class="result-content" id="tab-hashtags">
     <div class="caption-box">
       <button class="copy-btn" onclick="copyText('hashtagsRaw', this)">Copier</button>
+      <button class="edit-btn" id="edit-hash" onclick="toggleEditHashtags(this)">Modifier</button>
       <div class="hashtags-wrap" id="hashtagsDisplay"></div>
+      <div class="caption-text" id="hashtagsEdit" style="display:none;"></div>
       <span id="hashtagsRaw" style="display:none"></span>
     </div>
   </div>
@@ -421,7 +429,43 @@
     btn.classList.add('active');
     document.getElementById(`tab-${tab}`).classList.add('active');
   }
+function toggleEdit(id, btn) {
+    const el = document.getElementById(id);
+    const isEditing = el.contentEditable === 'true';
+    if (isEditing) {
+        el.contentEditable = 'false';
+        btn.textContent = 'Modifier';
+        btn.classList.remove('editing');
+    } else {
+        el.contentEditable = 'true';
+        el.focus();
+        btn.textContent = 'OK';
+        btn.classList.add('editing');
+    }
+}
 
+function toggleEditHashtags(btn) {
+    const display = document.getElementById('hashtagsDisplay');
+    const edit = document.getElementById('hashtagsEdit');
+    const raw = document.getElementById('hashtagsRaw');
+    const isEditing = edit.style.display !== 'none';
+    if (isEditing) {
+        const newTags = edit.textContent.trim();
+        raw.textContent = newTags;
+        const tags = newTags.split(' ').filter(t => t.startsWith('#'));
+        display.innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
+        edit.style.display = 'none';
+        display.style.display = 'flex';
+        btn.textContent = 'Modifier';
+        btn.classList.remove('editing');
+    } else {
+        edit.textContent = raw.textContent;
+        edit.style.display = 'block';
+        display.style.display = 'none';
+        btn.textContent = 'OK';
+        btn.classList.add('editing');
+    }
+}
   function copyText(id, btn) {
     navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
       btn.textContent = 'Copie !';
