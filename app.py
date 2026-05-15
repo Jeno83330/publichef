@@ -157,17 +157,12 @@ def generate_v2():
         del clipdrop
         gc.collect()
 
-        from replicate_engine import ReplicateEngine
-        composed_dir = Path("uploads/composed")
-        composed_dir.mkdir(parents=True, exist_ok=True)
-        composed_path = composed_dir / "final_composed.jpg"
-        replicate_eng = ReplicateEngine()
-        composed_path = replicate_eng.enhance_and_compose(
+        gemini = GeminiEngine()
+        composed_path = gemini.compose_dish_in_environment(
             detoured_path,
-            env_jpg,
-            composed_path
+            env_jpg
         )
-        del replicate_eng
+        del gemini
         gc.collect()
 
         with Image.open(composed_path) as img:
