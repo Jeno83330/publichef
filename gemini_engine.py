@@ -1,8 +1,9 @@
 """
-gemini_engine.py
+gemini_engine.py — Version optimisée pour PubliChef (Insertion géométrique réelle)
 """
 
 import os
+import io
 from pathlib import Path
 from PIL import Image
 from google import genai
@@ -27,110 +28,61 @@ class GeminiEngine:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"final_{dish_path.stem}.jpg"
 
-        dish_img = Image.open(dish_path)
-        env_img = Image.open(environment_path)
+        # Ouverture des images avec un gestionnaire de contexte pour libérer la RAM immédiatement après
+        with Image.open(dish_path) as dish_img, Image.open(environment_path) as env_img:
+            if dish_img.mode != "RGBA":
+                dish_img = dish_img.convert("RGBA")
+            if env_img.mode != "RGB":
+                env_img = env_img.convert("RGB")
 
-        if dish_img.mode != "RGBA":
-            dish_img = dish_img.convert("RGBA")
-        if env_img.mode != "RGB":
-            env_img = env_img.convert("RGB")
+            # Redimensionnement préventif à 1024x1024 max pour éviter les crashs RAM sur Render (512MB)
+            MAX_SIZE = (1024, 1024)
+            dish_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
+            env_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
 
-        MAX_SIZE = (1024, 1024)
-        dish_img.thumbnail(MAX_SIZE, Image.LANCZOS)
-        env_img.thumbnail(MAX_SIZE, Image.LANCZOS)
-
-        enhance_prompt = (
-            "You are both a Michelin 3-star chef and a world-class food photographer and retoucher. "
-            "I give you a dish photo on transparent background. "
-            "YOUR MISSION: Sublimate this dish while keeping it 100 percent RECOGNIZABLE. Same dish, same ingredients, same plate. "
-            "STEP 1 - DRESSING IMPROVEMENT: "
-            "Slightly improve the plating presentation like a professional chef would. "
-            "Straighten elements, add a touch of elegance, make it look meticulously plated. "
-            "Small precise adjustments only: better positioning of garnishes, cleaner sauce placement, "
-            "more appetizing arrangement of ingredients. Do NOT completely change the dish. "
-            "The person must recognize their dish but think WOW it looks so much better. "
-            "STEP 2 - PROFESSIONAL COLOR AND TEXTURE ENHANCEMENT: "
-            "Meats: rich brown caramelization, visible appetizing texture, beautiful crust. "
-            "Vegetables: vivid fresh colors, crisp and bright. "
-            "Sauces: glossy, shiny, professional restaurant finish. "
-            "Garnishes: perfectly placed, elegant, fresh. "
-            "Plate: clean edges, no smudges, pristine presentation. "
-            "STEP 3 - LIGHTING AND RETOUCHING: "
-            "Add warm professional food photography lighting with beautiful highlights. "
-            "Boost contrast by 20 percent for a magazine look. "
-            "Boost saturation by 15 percent to make food colors pop. "
-            "Add subtle specular highlights to make food look fresh and appetizing. "
-            "RESULT: A stunning Michelin-quality dish photo that looks professionally shot and plated. "
-            "Keep the transparent background intact. Return ONLY the enhanced dish image, no text."
-        )
-
-        enhance_response = self.client.models.generate_content(
-            model="gemini-3-pro-image-preview",
-            contents=[enhance_prompt, dish_img],
-            config=types.GenerateContentConfig(
-                response_modalities=["IMAGE", "TEXT"],
-                temperature=0.3
+            # PROMPT OPTIMISÉ : Focus absolu sur la géométrie, l'échelle et l'ancrage au sol
+            compose_prompt = (
+                "You are an expert digital compositor and professional food photographer. "
+                "I have provided two images: 1) A main dish plate, and 2) A restaurant environment background. "
+                "YOUR MISSION: Insert the dish into the environment photo with perfect geometric and physical realism. "
+                
+                "1. GEOMETRY & SCALE: Analyze the perspective, tilt, and orientation of the wooden table surface in the background. "
+                "Resize, rotate, and skew the plate so its angle matches the table's plane perfectly. "
+                "The plate must look like it is physically resting flat ON the table, not hovering or sliding. "
+                
+                "2. LIGHTING & BLENDING: Match the warm, golden ambient lighting of the restaurant. "
+                "Synthesize realistic, soft contact shadows (ambient occlusion) directly underneath and around the base of the plate "
+                "where it touches the wood. The edges of the plate must blend smoothly with the environment background textures. "
+                
+                "3. QUALITY & ENHANCEMENT: Enhance the crispness and rich textures of the food (glistening meat, vibrant garnishes) "
+                "while maintaining a professional shallow depth of field (sharp dish, soft bokeh background). "
+                "Do not change the food's identity; make it look highly appetizing. "
+                
+                "Return ONLY the final composited JPEG image."
             )
-        )
 
-        for part in enhance_response.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.data:
-                enhanced_dish_path = output_dir / "enhanced_dish_temp.png"
-                enhanced_dish_path.write_bytes(part.inline_data.data)
-                dish_img = Image.open(enhanced_dish_path)
-                if dish_img.mode != "RGBA":
-                    dish_img = dish_img.convert("RGBA")
-                break
-
-        compose_prompt = (
-            "You are the world best food photographer shooting for a 3-Michelin-star restaurant cookbook. "
-            "I give you TWO images: "
-            "Image 1: a professionally retouched dish on transparent background PNG. "
-            "Image 2: a real restaurant interior as background scene. "
-            "YOUR MISSION: Create a stunning magazine-quality food photograph by compositing the dish into the scene. "
-            "PERSPECTIVE AND PLACEMENT CRITICAL: "
-            "Carefully analyze the exact vanishing point, horizon line and camera angle of the background table. "
-            "The plate MUST be perfectly perspective-corrected to match the table surface angle exactly. "
-            "The plate MUST physically rest ON the table surface with FULL CONTACT, absolutely NO floating, NO gap between plate bottom and table. "
-            "The plate bottom edge must touch and slightly compress against the table surface to look real. "
-            "Scale: a dinner plate is 28cm diameter, scale it correctly relative to visible table elements. "
-            "Position: center-frame, slightly forward, like a hero shot. "
-            "LIGHTING AND SHADOWS CRITICAL: "
-            "Identify the main light source direction in the background photo. "
-            "Add a soft realistic shadow directly under the plate matching that light direction. "
-            "Add subtle ambient occlusion where plate meets table surface. "
-            "The food should have beautiful specular highlights. "
-            "COLOR GRADING: "
-            "Apply professional food photography color grading: warm shadows, bright highlights. "
-            "Overall warmth: golden hour feel. "
-            "Contrast boost 25 percent for magazine look. "
-            "DEPTH OF FIELD: "
-            "The dish must be razor sharp and tack-focused. "
-            "Background blurred with beautiful smooth bokeh. "
-            "QUALITY STANDARD: "
-            "Zero compositing artifacts, zero hard edges around the plate. "
-            "The result must be indistinguishable from a real photograph taken on location. "
-            "This image will appear on the cover of a Michelin restaurant guide. "
-            "OUTPUT: Return ONLY the final composite photograph. No text, no watermark, no border."
-        )
-
-        response = self.client.models.generate_content(
-            model="gemini-3-pro-image-preview",
-            contents=[compose_prompt, dish_img, env_img],
-            config=types.GenerateContentConfig(
-                response_modalities=["IMAGE", "TEXT"],
-                temperature=0.4
+            # Un seul appel API au lieu de deux : gain de vitesse massif et économie de RAM
+            response = self.client.models.generate_content(
+                model="gemini-3-pro-image-preview",
+                contents=[compose_prompt, dish_img, env_img],
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE", "TEXT"],
+                    temperature=0.4
+                )
             )
-        )
 
+        # Extraction et sauvegarde de l'image finale renvoyée par Gemini
         for part in response.candidates[0].content.parts:
             if part.inline_data and part.inline_data.data:
-                png_path = output_path.with_suffix(".png")
-                png_path.write_bytes(part.inline_data.data)
-                with Image.open(png_path) as img:
+                # Utilisation de BytesIO pour traiter l'image en RAM sans fichier PNG temporaire sur Render
+                input_buffer = io.BytesIO(part.inline_data.data)
+                
+                with Image.open(input_buffer) as img:
                     if img.mode != "RGB":
                         img = img.convert("RGB")
-                    img.save(output_path, "JPEG", quality=95)
+                    # Sauvegarde directe au format JPEG avec une qualité optimisée pour le Web
+                    img.save(output_path, "JPEG", quality=90)
+                    
                 return output_path
 
         raise Exception("Gemini did not return an image")
