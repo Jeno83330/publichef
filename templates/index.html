@@ -58,8 +58,10 @@
   #screen-loading { align-items: center; justify-content: center; text-align: center; }
   .loading-ring { width: 80px; height: 80px; border: 3px solid rgba(245,200,66,0.15); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 32px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 12px; }
-  .loading-step { color: var(--gray); font-size: 14px; margin-bottom: 32px; }
+  .loading-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 20px; }
+  .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 24px; overflow: hidden; border: 1px solid var(--border); }
+  .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--success)); transition: width 1s linear; }
+  .loading-step { color: var(--gray); font-size: 14px; margin-bottom: 24px; min-height: 20px; font-weight: 500; }
   .loading-steps-list { text-align: left; background: var(--card); border-radius: 16px; padding: 20px; width: 100%; }
   .loading-step-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 14px; color: var(--gray); transition: all 0.3s; }
   .loading-step-item.active { color: var(--white); }
@@ -98,7 +100,6 @@
   nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; background: var(--card); border-top: 1px solid var(--border); display: flex; padding: 12px 0; z-index: 200; }
   .nav-btn { flex: 1; background: none; border: none; font-size: 22px; cursor: pointer; padding: 8px; transition: all 0.2s; }
 
-  /* COMPOSANTS DES CURSEURS REGLAGES */
   .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 12px; }
   .settings-label-wrap { display: flex; flex-direction: column; gap: 4px; }
   .settings-label { font-size: 15px; font-weight: 500; color: var(--white); }
@@ -193,14 +194,19 @@
 
 <div class="screen" id="screen-loading">
   <div class="loading-ring"></div>
-  <div class="loading-title">Magie en cours...</div>
-  <div class="loading-step" id="loadingStep">Preparation des images</div>
+  <div class="loading-title">Sublimation IA en cours...</div>
+  
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="loading-step" id="loadingStep">Analyse des images reçues...</div>
   <div class="loading-steps-list">
-    <div class="loading-step-item" id="lstep1"><div class="step-check">1</div><span>Detourage du plat</span></div>
-    <div class="loading-step-item" id="lstep2"><div class="step-check">2</div><span>Composition dans le decor</span></div>
-    <div class="loading-step-item" id="lstep3"><div class="step-check">3</div><span>Analyse IA du plat</span></div>
-    <div class="loading-step-item" id="lstep4"><div class="step-check">4</div><span>Redaction des legendes</span></div>
-    <div class="loading-step-item" id="lstep5"><div class="step-check">5</div><span>Generation des hashtags</span></div>
+    <div class="loading-step-item" id="lstep1"><div class="step-check">1</div><span>Détourage & Amélioration du plat</span></div>
+    <div class="loading-step-item" id="lstep2"><div class="step-check">2</div><span>Incrustation perspective Gemini</span></div>
+    <div class="loading-step-item" id="lstep3"><div class="step-check">3</div><span>Analyse de texture et couleurs</span></div>
+    <div class="loading-step-item" id="lstep4"><div class="step-check">4</div><span>Rédaction des légendes Meta</span></div>
+    <div class="loading-step-item" id="lstep5"><div class="step-check">5</div><span>Optimisation des Hashtags</span></div>
   </div>
 </div>
 
@@ -319,8 +325,8 @@
   let dishFile = null, envFile = null, selectedDecor = 'salle';
   let savedDecors = {};
   let modifyingDecor = null;
+  let progressInterval = null;
 
-  // On lance le chargement des réglages au démarrage
   document.addEventListener('DOMContentLoaded', () => {
     loadSavedDecors();
     loadSettings();
@@ -418,23 +424,57 @@
     document.getElementById('btnGenerate').disabled = !(dishFile && hasEnv);
   }
 
-  const stepMessages = ["Detourage du plat...","Composition dans le decor...","Analyse IA du plat...","Redaction des legendes...","Generation des hashtags..."];
+  const stepMessages = [
+    "Amélioration de la netteté et détourage...",
+    "Calcul de l'intégration 3D dans le décor...",
+    "Analyse harmonique des couleurs par l'IA...",
+    "Rédaction des légendes Instagram et Facebook...",
+    "Sélection des hashtags tendances..."
+  ];
 
-  function animateSteps() {
-    let current = 0;
-    const interval = setInterval(() => {
-      if (current > 0) {
-        document.getElementById(`lstep${current}`).classList.remove('active');
-        document.getElementById(`lstep${current}`).classList.add('done');
-        document.getElementById(`lstep${current}`).querySelector('.step-check').textContent = 'v';
+  // ANIMATION INTELLIGENTE DE LA BARRE SANS CHRONO VISIBLE
+  function startProgress() {
+    let currentPercent = 0;
+    const progressBar = document.getElementById('progressBar');
+    const loadingStepText = document.getElementById('loadingStep');
+    
+    for (let i = 1; i <= 5; i++) {
+      const item = document.getElementById(`lstep${i}`);
+      item.classList.remove('active', 'done');
+      item.querySelector('.step-check').textContent = i;
+    }
+
+    clearInterval(progressInterval);
+    
+    progressInterval = setInterval(() => {
+      // La barre avance de manière réaliste et ralentit sur la fin pour attendre le serveur
+      if (currentPercent < 70) {
+        currentPercent += 2; // Avancement normal au début
+      } else if (currentPercent < 92) {
+        currentPercent += 0.5; // Ralentissement
+      } else if (currentPercent < 98) {
+        currentPercent += 0.1; // Micro-avancement de sécurité pour montrer que ça cherche toujours
       }
-      if (current < 5) {
-        document.getElementById(`lstep${current + 1}`).classList.add('active');
-        document.getElementById('loadingStep').textContent = stepMessages[current];
-        current++;
-      } else { clearInterval(interval); }
-    }, 4000);
-    return interval;
+      
+      progressBar.style.width = `${currentPercent}%`;
+
+      // Synchronisation visuelle des étapes de texte
+      let currentStepIndex = Math.floor(currentPercent / 20);
+      if (currentStepIndex > 4) currentStepIndex = 4;
+
+      loadingStepText.textContent = stepMessages[currentStepIndex];
+
+      for (let i = 1; i <= 5; i++) {
+        const item = document.getElementById(`lstep${i}`);
+        if (i < currentStepIndex + 1) {
+          item.classList.remove('active');
+          item.classList.add('done');
+          item.querySelector('.step-check').textContent = '✓';
+        } else if (i === currentStepIndex + 1) {
+          item.classList.add('active');
+        }
+      }
+    }, 1000);
   }
 
   async function startGeneration() {
@@ -442,8 +482,10 @@
     error1.style.display = 'none';
     if (!dishFile) { error1.textContent = 'Veuillez uploader la photo du plat'; error1.style.display = 'block'; return; }
     if (!envFile && !savedDecors[selectedDecor]) { error1.textContent = 'Veuillez uploader une photo de decor'; error1.style.display = 'block'; return; }
+    
     showScreen('loading');
-    const stepInterval = animateSteps();
+    startProgress(); // On démarre la barre de progression linéaire
+
     const formData = new FormData();
     formData.append('dish', dishFile);
     if (envFile) {
@@ -453,11 +495,15 @@
       formData.append('environment', blob, 'env.jpg');
     }
     formData.append('decor', selectedDecor);
+    
     try {
       const response = await fetch('/generate_v2', { method: 'POST', body: formData });
       const data = await response.json();
-      clearInterval(stepInterval);
+      
+      clearInterval(progressInterval); // Arrêt immédiat de la progression
+      
       if (data.error) { showScreen('capture'); error1.textContent = data.error; error1.style.display = 'block'; return; }
+      
       document.getElementById('resultImage').src = data.image;
       document.getElementById('igText').textContent = data.instagram;
       document.getElementById('fbText').textContent = data.facebook;
@@ -465,7 +511,6 @@
       document.getElementById('hashtagsDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
       document.getElementById('hashtagsRaw').textContent = data.hashtags;
       
-      // Réinitialiser l'état du bouton One-Click à chaque nouvelle génération
       const pubBtn = document.getElementById('btn-one-click');
       pubBtn.disabled = false;
       pubBtn.style.backgroundColor = "#25d366";
@@ -474,9 +519,9 @@
 
       showScreen('result');
     } catch (err) {
-      clearInterval(stepInterval);
+      clearInterval(progressInterval);
       showScreen('capture');
-      error1.textContent = 'Erreur de connexion.';
+      error1.textContent = 'Le serveur met du temps à répondre. Réessayez la génération.';
       error1.style.display = 'block';
     }
   }
@@ -485,7 +530,6 @@
     const pubBtn = document.getElementById('btn-one-click');
     const statusTxt = document.getElementById('publish-status');
     
-    // Lecture des configurations de l'utilisateur enregistrées dans le LocalStorage
     const shareFb = localStorage.getItem('publichef_fb') !== 'false';
     const shareInsta = localStorage.getItem('publichef_insta') !== 'false';
 
@@ -502,7 +546,6 @@
     statusTxt.innerText = "Envoi aux serveurs Meta...";
     statusTxt.style.color = "var(--white)";
 
-    // On prépare le contenu à envoyer (Légendes modifiées + image finale)
     fetch('/publish_to_socials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -624,11 +667,6 @@
     document.getElementById('envInput').value = '';
     document.getElementById('dishCard').classList.remove('has-image');
     document.getElementById('envCard').classList.remove('has-image');
-    document.querySelectorAll('.loading-step-item').forEach((s,i) => {
-      s.classList.remove('active', 'done');
-      s.querySelector('.step-check').textContent = i+1;
-    });
-    checkReady();
     goCapture();
   }
 
