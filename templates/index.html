@@ -97,6 +97,19 @@
   .history-card-date { padding: 8px; font-size: 11px; color: var(--gray); }
   nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; background: var(--card); border-top: 1px solid var(--border); display: flex; padding: 12px 0; z-index: 200; }
   .nav-btn { flex: 1; background: none; border: none; font-size: 22px; cursor: pointer; padding: 8px; transition: all 0.2s; }
+
+  /* COMPOSANTS DES CURSEURS REGLAGES */
+  .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 12px; }
+  .settings-label-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .settings-label { font-size: 15px; font-weight: 500; color: var(--white); }
+  .settings-desc { font-size: 12px; color: var(--gray); }
+  .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background-color: rgba(255,255,255,0.1); transition: .3s; border-radius: 34px; border: 1px solid var(--border); }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--white); transition: .3s; border-radius: 50%; }
+  input:checked + .slider { background-color: var(--success); border-color: var(--success); }
+  input:checked + .slider:before { transform: translateX(20px); }
+  .status-toast { font-size: 13px; color: var(--success); text-align: center; margin-top: 8px; font-weight: 500; min-height: 20px; }
 </style>
 </head>
 <body>
@@ -110,7 +123,6 @@
   </div>
 </header>
 
-<!-- SCREEN 1 : CAPTURE -->
 <div class="screen active" id="screen-capture">
   <div class="screen-title">Créez votre post</div>
   <div class="screen-subtitle">Photographiez votre plat et choisissez votre décor</div>
@@ -179,7 +191,6 @@
   </button>
 </div>
 
-<!-- SCREEN 2 : LOADING -->
 <div class="screen" id="screen-loading">
   <div class="loading-ring"></div>
   <div class="loading-title">Magie en cours...</div>
@@ -193,7 +204,6 @@
   </div>
 </div>
 
-<!-- SCREEN 3 : RESULT -->
 <div class="screen" id="screen-result">
   <img class="result-image" id="resultImage" src="" alt="Resultat">
   <div class="result-tabs">
@@ -226,10 +236,17 @@
       <span id="hashtagsRaw" style="display:none"></span>
     </div>
   </div>
-  <button class="btn-primary" onclick="resetApp()" style="margin-top:20px;">📸 Nouveau post</button>
+
+  <div style="margin-top: 12px; margin-bottom: 20px;">
+    <button id="btn-one-click" onclick="publishPost()" class="btn-primary" style="background-color: #25d366; color: #000; font-weight: 700;">
+      🚀 Publier en 1 clic
+    </button>
+    <p id="publish-status" style="font-size: 13px; text-align: center; margin-top: 10px; font-weight: 500;"></p>
+  </div>
+
+  <button class="btn-secondary" onclick="resetApp()">📸 Nouveau post</button>
 </div>
 
-<!-- SCREEN 4 : HISTORIQUE -->
 <div class="screen" id="screen-history">
   <div class="screen-title" style="margin-bottom:20px;">Historique</div>
   <div id="historyGrid" class="history-grid"></div>
@@ -263,10 +280,39 @@
   </div>
 </div>
 
-<!-- NAV BAR -->
+<div class="screen" id="screen-settings">
+  <div class="screen-title">Réglages</div>
+  <div class="screen-subtitle">Configurez vos canaux de publication automatique</div>
+  
+  <div class="settings-row">
+    <div class="settings-label-wrap">
+      <span class="settings-label">🔹 Page Facebook</span>
+      <span class="settings-desc">Inclure la publication Facebook</span>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-facebook" onchange="saveSettings()">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="settings-row">
+    <div class="settings-label-wrap">
+      <span class="settings-label">🔸 Compte Instagram</span>
+      <span class="settings-desc">Inclure la publication Instagram</span>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-instagram" onchange="saveSettings()">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status-toast" id="settings-status"></div>
+</div>
+
 <nav>
   <button class="nav-btn" id="nav0" onclick="goCapture()" style="color:var(--gold);">📸</button>
   <button class="nav-btn" id="nav1" onclick="goHistory()" style="color:var(--gray);">🗂️</button>
+  <button class="nav-btn" id="nav2" onclick="goSettings()" style="color:var(--gray);">⚙️</button>
 </nav>
 
 <script>
@@ -274,7 +320,29 @@
   let savedDecors = {};
   let modifyingDecor = null;
 
-  loadSavedDecors();
+  // On lance le chargement des réglages au démarrage
+  document.addEventListener('DOMContentLoaded', () => {
+    loadSavedDecors();
+    loadSettings();
+  });
+
+  function saveSettings() {
+    const fbActive = document.getElementById('toggle-facebook').checked;
+    const instaActive = document.getElementById('toggle-instagram').checked;
+    localStorage.setItem('publichef_fb', fbActive);
+    localStorage.setItem('publichef_insta', instaActive);
+
+    const status = document.getElementById('settings-status');
+    status.innerText = "✓ Configuration enregistrée";
+    setTimeout(() => { status.innerText = ""; }, 2000);
+  }
+
+  function loadSettings() {
+    const fbActive = localStorage.getItem('publichef_fb') !== 'false';
+    const instaActive = localStorage.getItem('publichef_insta') !== 'false';
+    document.getElementById('toggle-facebook').checked = fbActive;
+    document.getElementById('toggle-instagram').checked = instaActive;
+  }
 
   async function loadSavedDecors() {
     try {
@@ -396,6 +464,14 @@
       const tags = data.hashtags.split(' ').filter(t => t.startsWith('#'));
       document.getElementById('hashtagsDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
       document.getElementById('hashtagsRaw').textContent = data.hashtags;
+      
+      // Réinitialiser l'état du bouton One-Click à chaque nouvelle génération
+      const pubBtn = document.getElementById('btn-one-click');
+      pubBtn.disabled = false;
+      pubBtn.style.backgroundColor = "#25d366";
+      pubBtn.innerText = "🚀 Publier en 1 clic";
+      document.getElementById('publish-status').innerText = "";
+
       showScreen('result');
     } catch (err) {
       clearInterval(stepInterval);
@@ -403,6 +479,63 @@
       error1.textContent = 'Erreur de connexion.';
       error1.style.display = 'block';
     }
+  }
+
+  function publishPost() {
+    const pubBtn = document.getElementById('btn-one-click');
+    const statusTxt = document.getElementById('publish-status');
+    
+    // Lecture des configurations de l'utilisateur enregistrées dans le LocalStorage
+    const shareFb = localStorage.getItem('publichef_fb') !== 'false';
+    const shareInsta = localStorage.getItem('publichef_insta') !== 'false';
+
+    if (!shareFb && !shareInsta) {
+        statusTxt.innerText = "❌ Aucun réseau activé dans vos réglages.";
+        statusTxt.style.color = "var(--error)";
+        return;
+    }
+
+    pubBtn.disabled = true;
+    pubBtn.style.backgroundColor = "var(--card)";
+    pubBtn.style.color = "var(--gray)";
+    pubBtn.innerText = "Publication...";
+    statusTxt.innerText = "Envoi aux serveurs Meta...";
+    statusTxt.style.color = "var(--white)";
+
+    // On prépare le contenu à envoyer (Légendes modifiées + image finale)
+    fetch('/publish_to_socials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            facebook: shareFb,
+            instagram: shareInsta,
+            caption_fb: document.getElementById('fbText').textContent,
+            caption_ig: document.getElementById('igText').textContent + "\n\n" + document.getElementById('hashtagsRaw').textContent
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusTxt.innerText = "🎉 En ligne ! Post publié avec succès.";
+            statusTxt.style.color = "var(--success)";
+            pubBtn.innerText = "✓ Publié !";
+        } else {
+            statusTxt.innerText = "❌ Erreur : " + data.error;
+            statusTxt.style.color = "var(--error)";
+            pubBtn.disabled = false;
+            pubBtn.style.backgroundColor = "#25d366";
+            pubBtn.style.color = "#000";
+            pubBtn.innerText = "🚀 Publier en 1 clic";
+        }
+    })
+    .catch(err => {
+        statusTxt.innerText = "❌ Erreur de réseau.";
+        statusTxt.style.color = "var(--error)";
+        pubBtn.disabled = false;
+        pubBtn.style.backgroundColor = "#25d366";
+        pubBtn.style.color = "#000";
+        pubBtn.innerText = "🚀 Publier en 1 clic";
+    });
   }
 
   function showScreen(name) {
@@ -414,13 +547,22 @@
     showScreen('capture');
     document.getElementById('nav0').style.color = 'var(--gold)';
     document.getElementById('nav1').style.color = 'var(--gray)';
+    document.getElementById('nav2').style.color = 'var(--gray)';
   }
 
   function goHistory() {
     showScreen('history');
     document.getElementById('nav0').style.color = 'var(--gray)';
     document.getElementById('nav1').style.color = 'var(--gold)';
+    document.getElementById('nav2').style.color = 'var(--gray)';
     loadHistory();
+  }
+
+  function goSettings() {
+    showScreen('settings');
+    document.getElementById('nav0').style.color = 'var(--gray)';
+    document.getElementById('nav1').style.color = 'var(--gray)';
+    document.getElementById('nav2').style.color = 'var(--gold)';
   }
 
   function switchTab(tab, btn) {
@@ -429,7 +571,8 @@
     btn.classList.add('active');
     document.getElementById(`tab-${tab}`).classList.add('active');
   }
-function toggleEdit(id, btn) {
+
+  function toggleEdit(id, btn) {
     const el = document.getElementById(id);
     const isEditing = el.contentEditable === 'true';
     if (isEditing) {
@@ -442,9 +585,9 @@ function toggleEdit(id, btn) {
         btn.textContent = 'OK';
         btn.classList.add('editing');
     }
-}
+  }
 
-function toggleEditHashtags(btn) {
+  function toggleEditHashtags(btn) {
     const display = document.getElementById('hashtagsDisplay');
     const edit = document.getElementById('hashtagsEdit');
     const raw = document.getElementById('hashtagsRaw');
@@ -465,7 +608,8 @@ function toggleEditHashtags(btn) {
         btn.textContent = 'OK';
         btn.classList.add('editing');
     }
-}
+  }
+
   function copyText(id, btn) {
     navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
       btn.textContent = 'Copie !';

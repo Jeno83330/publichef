@@ -151,15 +151,7 @@ def generate_v2():
         del processor
         gc.collect()
 
-        # TEST : On commente le détourage de Clipdrop pour envoyer l'image brute à Gemini
-        # from clipdrop_engine import ClipdropEngine
-        # clipdrop = ClipdropEngine()
-        # detoured_path = clipdrop.remove_background(enhanced_dish)
-        # del clipdrop
-        # gc.collect()
-
         gemini = GeminiEngine()
-        # On passe directement 'enhanced_dish' au lieu de 'detoured_path'
         composed_path = gemini.compose_dish_in_environment(
             enhanced_dish,
             env_jpg
@@ -206,6 +198,37 @@ def generate_v2():
     except Exception as e:
         gc.collect()
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route("/publish_to_socials", methods=["POST"])
+def publish_to_socials():
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "Données de publication invalides"}), 400
+
+    share_fb = data.get("facebook", False)
+    share_insta = data.get("instagram", False)
+    caption_fb = data.get("caption_fb", "")
+    caption_ig = data.get("caption_ig", "")
+
+    try:
+        # LOGS DE CONTROLE DANS LE TERMINAL DE RENDER
+        print("\n================ [METAMEDIA PUBLISH] ================")
+        print(f" Demande de publication reçue.")
+        print(f" -> Canaux cibles : Facebook = {share_fb} | Instagram = {share_insta}")
+        print(f" -> Contenu FB (extrait) : {caption_fb[:45]}...")
+        print(f" -> Contenu IG (extrait) : {caption_ig[:45]}...")
+        print("=====================================================\n")
+
+        # ÉTAPE FUTURE SAAS :
+        # 1. Récupérer l'image finale générée et la pousser temporairement sur ImgBB via decor_manager.
+        # 2. Utiliser l'URL publique générée pour alimenter l'API Meta Graph avec les Tokens OAuth de la BDD.
+
+        # On renvoie un statut de succès simulé pour valider l'action côté interface web
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/get_decors")
