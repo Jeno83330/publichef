@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2
+app.py — Interface web PubliChef V2 (Version Test Intégration Directe)
 """
 
 import os
@@ -143,7 +143,6 @@ def generate_v2():
 
     try:
         from image_processor import ImageProcessor
-        from clipdrop_engine import ClipdropEngine
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
@@ -152,14 +151,17 @@ def generate_v2():
         del processor
         gc.collect()
 
-        clipdrop = ClipdropEngine()
-        detoured_path = clipdrop.remove_background(enhanced_dish)
-        del clipdrop
-        gc.collect()
+        # TEST : On commente le détourage de Clipdrop pour envoyer l'image brute à Gemini
+        # from clipdrop_engine import ClipdropEngine
+        # clipdrop = ClipdropEngine()
+        # detoured_path = clipdrop.remove_background(enhanced_dish)
+        # del clipdrop
+        # gc.collect()
 
         gemini = GeminiEngine()
+        # On passe directement 'enhanced_dish' au lieu de 'detoured_path'
         composed_path = gemini.compose_dish_in_environment(
-            detoured_path,
+            enhanced_dish,
             env_jpg
         )
         del gemini
