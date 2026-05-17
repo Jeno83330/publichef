@@ -27,6 +27,18 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 # Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
 
+def resize_and_convert_to_jpg(src, dst, max_size=(1200, 1200)):
+    """Allège l'image dès sa réception pour éviter l'explosion de la RAM sur Render."""
+    try:
+        with Image.open(str(src)) as im:
+            if im.mode != "RGB":
+                im = im.convert("RGB")
+            # Redimensionnement proportionnel si l'image est immense
+            im.thumbnail(max_size, Image.Resampling.LANCZOS)
+            im.save(str(dst), "JPEG", quality=85)
+    except Exception:
+        shutil.copy(str(src), str(dst))
+
 class AdvancedFoodEnhancer:
     """Moteur Culinaire Actif pour sublimer la photo de plat avant intégration."""
     
@@ -38,42 +50,28 @@ class AdvancedFoodEnhancer:
                     im = im.convert("RGB")
                 
                 # --- Étape 1 : Raviver les couleurs (Saturation Culinaire active) ---
-                # On augmente la saturation de 40% pour faire ressortir les couleurs des aliments
                 enhancer_sat = ImageEnhance.Color(im)
                 im = enhancer_sat.enhance(1.4)
                 
                 # --- Étape 2 : Le Croustillant (Contraste local & Relief) ---
-                # On applique une légère augmentation de contraste pour donner du volume
                 enhancer_con = ImageEnhance.Contrast(im)
                 im = enhancer_con.enhance(1.2)
                 
-                # --- Étape 3 : La Brillance (Contrôle de la luminosité et des tons) ---
-                # On égalise légèrement pour déboucher les ombres, puis on rehausse la luminosité
+                # --- Étape 3 : La Brillance ---
                 im = ImageOps.autocontrast(im, cutoff=0.5)
                 enhancer_bri = ImageEnhance.Brightness(im)
                 im = enhancer_bri.enhance(1.1)
                 
                 # --- Étape 4 : La Netteté Finale ---
-                # Légère augmentation de la netteté pour les micro-détails
                 enhancer_sha = ImageEnhance.Sharpness(im)
                 im = enhancer_sha.enhance(1.3)
                 
-                # Sauvegarde en haute qualité avant détourage
-                im.save(str(image_output), "JPEG", quality=95)
+                im.save(str(image_output), "JPEG", quality=90)
                 return True
         except Exception as e:
             print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
             shutil.copy(str(image_input), str(image_output))
             return False
-
-def convert_to_jpg(src, dst):
-    try:
-        with Image.open(str(src)) as im:
-            if im.mode != "RGB":
-                im = im.convert("RGB")
-            im.save(str(dst), "JPEG")
-    except Exception:
-        shutil.copy(str(src), str(dst))
 
 
 @app.route("/")
@@ -116,16 +114,16 @@ def generate_v2():
     dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    # 1. Traitement et conversion de la photo du plat
+    # 1. Traitement et conversion immédiate de la photo du plat pour la RAM
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
-    convert_to_jpg(dish_raw, dish_jpg)
+    resize_and_convert_to_jpg(dish_raw, dish_jpg)
 
     # SUBLIMATION CULINAIRE ACTIVE
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
 
-    # 2. Gestion unifiée du fond (Décor permanent ou upload direct)
+    # 2. Gestion du fond d'ambiance
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     
     if "environment" in request.files and request.files["environment"].filename != '':
@@ -134,65 +132,57 @@ def generate_v2():
         env_file.stream.seek(0)
         with open(str(env_raw), "wb") as f:
             f.write(env_file.stream.read())
-        convert_to_jpg(env_raw, env_jpg)
+        resize_and_convert_to_jpg(env_raw, env_jpg)
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Veuillez cliquer sur Modifier pour ajouter votre photo."}), 400
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
 
     try:
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        # Utilisation de la photo sublimée pour l'intégration
+        # Libération agressive de la RAM avant d'appeler l'IA de composition
+        gc.collect()
+
         gemini = GeminiEngine()
-        composed_path = gemini.compose_dish_in_environment(
-            dish_enhanced_jpg, 
-            env_jpg
-        )
+        composed_path = gemini.compose_dish_in_environment(dish_enhanced_jpg, env_jpg)
         del gemini
         gc.collect()
 
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            quality = 85
-            while True:
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=quality)
-                if len(buffer.getvalue()) <= 4 * 1024 * 1024 or quality < 30:
-                    break
-                quality -= 10
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=85)
             compressed = buffer.getvalue()
 
-        gc.collect()
-
-        ai = AIEngine()
-        img_b64 = base64.b64encode(compressed).decode("utf-8")
-        
         last_output = UPLOAD_FOLDER / "last_output.jpg"
         with open(str(last_output), "wb") as f:
             f.write(compressed)
             
+        img_b64 = base64.b64encode(compressed).decode("utf-8")
         del compressed
+        gc.collect()
+
+        ai = AIEngine()
         description = ai.describe_dish_from_bytes(img_b64)
-        instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
-        
-        facebook_with_phone = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}"
         hashtags = ai.generate_hashtags(description)
+        
+        # Fusion automatique en un seul bloc de texte propre
+        facebook_final = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
+        
         del ai
         gc.collect()
 
         from history_manager import save_post
-        save_post(composed_path, description, instagram, facebook_with_phone, hashtags)
+        save_post(composed_path, description, "", facebook_final, "")
 
         return jsonify({
             "success": True,
             "description": description,
-            "instagram": instagram,
-            "facebook": facebook_with_phone,
-            "hashtags": hashtags,
+            "facebook": facebook_final,
             "image": f"data:image/jpeg;base64,{img_b64}"
         })
 
@@ -207,110 +197,34 @@ def publish_to_socials():
     if not data:
         return jsonify({"success": False, "error": "Données invalides"}), 400
 
-    share_fb = data.get("facebook", False)
-    share_ig = data.get("instagram", False)
+    # On récupère le texte global
     caption_fb = data.get("caption_fb", "")
-    caption_ig = data.get("caption_ig", "")
-
-    if not share_fb and not share_ig:
-        return jsonify({"success": False, "error": "Aucun réseau social sélectionné."}), 400
 
     if not META_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
+        return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré."}), 400
 
     image_path = UPLOAD_FOLDER / "last_output.jpg"
     if not image_path.exists():
-        return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
+        return jsonify({"success": False, "error": "Fichier image introuvable. Veuillez recréer le post."}), 400
 
-    fb_success = False
-    ig_success = False
-    error_msg = []
-
-    # --- 1. SÉCURISATION ET RÉCUPÉRATION DES COMPTES PRO ---
     try:
         page_url = f"https://graph.facebook.com/v25.0/me/accounts"
         page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
+        page_id = page_res["data"][0].get("id") if "data" in page_res and len(page_res["data"]) > 0 else "me"
         
-        page_id = None
-        instagram_business_id = None
+        fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
+        payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
+        
+        with open(str(image_path), 'rb') as img_file:
+            files = {'source': ('post.jpg', img_file, 'image/jpeg')}
+            res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
 
-        if "data" in page_res and len(page_res["data"]) > 0:
-            page_id = page_res["data"][0].get("id")
-            ig_url = f"https://graph.facebook.com/v25.0/{page_id}"
-            ig_res = requests.get(ig_url, params={'fields': 'instagram_business_account', 'access_token': META_ACCESS_TOKEN}).json()
-            if "instagram_business_account" in ig_res:
-                instagram_business_id = ig_res["instagram_business_account"].get("id")
-    except Exception as e:
-        print(f"[META API INFO] Échec récupération ID dynamiques : {e}")
-
-    if not page_id:
-        page_id = "me"
-
-    # --- 2. ENVOI SUR FACEBOOK ---
-    if share_fb:
-        try:
-            print(f"[META API] Publication sur la page Facebook {page_id}...")
-            if PHONE_RESERVATION not in caption_fb:
-                caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
-
-            fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
-            payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
+        if "error" in res_fb:
+            return jsonify({"success": False, "error": f"Facebook: {res_fb['error'].get('message')}"}), 500
             
-            with open(str(image_path), 'rb') as img_file:
-                files = {'source': ('post.jpg', img_file, 'image/jpeg')}
-                res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
-
-            if "error" in res_fb:
-                error_msg.append(f"Facebook: {res_fb['error'].get('message')}")
-            else:
-                fb_success = True
-                print("[META API] Succès Facebook")
-        except Exception as e:
-            error_msg.append(f"Facebook Exception: {str(e)}")
-
-    # --- 3. ENVOI SUR INSTAGRAM ---
-    if share_ig:
-        if not instagram_business_id:
-            error_msg.append("Instagram: Aucun compte pro associé trouvé sur cette page Facebook.")
-        else:
-            try:
-                print(f"[META API] Début processus Instagram (Compte ID: {instagram_business_id})...")
-                
-                container_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media"
-                payload_ig = {
-                    'caption': caption_ig,
-                    'access_token': META_ACCESS_TOKEN
-                }
-                
-                with open(str(image_path), 'rb') as img_file:
-                    files_ig = {'image_file': ('post.jpg', img_file, 'image/jpeg')}
-                    res_container = requests.post(container_url, data=payload_ig, files=files_ig).json()
-
-                if "error" in res_container:
-                    error_msg.append(f"Instagram (Conteneur): {res_container['error'].get('message')}")
-                else:
-                    creation_id = res_container.get("id")
-                    print(f"[META API] Conteneur Instagram créé. ID: {creation_id}. Publication...")
-
-                    publish_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media_publish"
-                    res_publish = requests.post(publish_url, data={
-                        'creation_id': creation_id,
-                        'access_token': META_ACCESS_TOKEN
-                    }).json()
-
-                    if "error" in res_publish:
-                        error_msg.append(f"Instagram (Publication): {res_publish['error'].get('message')}")
-                    else:
-                        ig_success = True
-                        print("[META API] Succès Instagram")
-            except Exception as e:
-                error_msg.append(f"Instagram Exception: {str(e)}")
-
-    # --- 4. BILAN DE LA PUBLICATION ---
-    if (share_fb and not fb_success) or (share_ig and not ig_success):
-        return jsonify({"success": False, "error": " | ".join(error_msg)}), 500
-
-    return jsonify({"success": True, "message": "Publication validée avec succès !"})
+        return jsonify({"success": True, "message": "Plat publié avec succès (et dupliqué automatiquement sur Instagram) !"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/get_decors")
@@ -338,7 +252,7 @@ def save_decor_route(decor_name):
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
         
-    convert_to_jpg(raw_path, jpg_path)
+    resize_and_convert_to_jpg(raw_path, jpg_path)
     return sync_decors_response()
 
 
@@ -362,16 +276,15 @@ def sync_decors_response():
     return jsonify({"success": True, "decors": decors_b64})
 
 
-# --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS (VERSION SUPRÊME) ---
+# --- INTERFACE DE CONNEXION DE SECOURS (VERSION CROSS-POSTING) ---
 @app.route("/connect_meta_auto")
 def connect_meta_auto():
-    # Intégration complète de TOUTES les autorisations requises Facebook + Instagram
     meta_url = (
         "https://www.facebook.com/v25.0/dialog/oauth"
         "?client_id=1307525461448166"
         "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
         "&response_type=token"
-        "&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
+        "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     )
     
     return f'''
@@ -385,10 +298,10 @@ def connect_meta_auto():
         <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
             <h2 style="margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
             <p style="color:#aaa; font-size:14px; line-height:1.6; margin-bottom:35px;">
-                Toutes vannes ouvertes. Cliquez ci-dessous pour lier définitivement votre compte Instagram Professionnel et votre page Facebook.
+                Configuration simplifiée pour le cross-posting. Cliquez ci-dessous pour lier votre page Facebook.
             </p>
             <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">
-                🔵 S'AUTHENTIFIER SUR LES RÉSEAUX
+                🔵 LIER LA PAGE FACEBOOK
             </a>
         </div>
     </body>
