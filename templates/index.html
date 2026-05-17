@@ -334,7 +334,7 @@
   let savedDecors = {};
   let modifyingDecor = null;
   let progressInterval = null;
-  let currentHistoryPost = null; // Stocke l'archive sélectionnée dans l'historique
+  let currentHistoryPost = null; 
 
   document.addEventListener('DOMContentLoaded', () => {
     loadSavedDecors();
@@ -494,13 +494,16 @@
 
     const formData = new FormData();
     formData.append('dish', dishFile);
+    
+    // TRANSMISSION DU PARAMÈTRE DE DÉCOR SÉLECTIONNÉ AU SERVEUR PYTHON
+    formData.append('decor', selectedDecor);
+    
     if (envFile) {
       formData.append('environment', envFile);
     } else {
       const blob = await fetch(savedDecors[selectedDecor]).then(r => r.blob());
       formData.append('environment', blob, 'env.jpg');
     }
-    formData.append('decor', selectedDecor);
     
     try {
       const response = await fetch('/generate_v2', { method: 'POST', body: formData });
@@ -644,7 +647,7 @@
     const post = window._historyPosts.find(p => p.id === id);
     if (!post) return;
     
-    currentHistoryPost = post; // Enregistrement du post historique sélectionné
+    currentHistoryPost = post; 
     
     document.getElementById('historyGrid').style.display = 'none';
     document.getElementById('historyDetail').style.display = 'block';
@@ -655,7 +658,6 @@
     document.getElementById('histHashDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
     document.getElementById('histHashRaw').textContent = post.hashtags;
     
-    // Réinitialisation de l'état du bouton republier
     const repBtn = document.getElementById('btn-republish');
     repBtn.disabled = false;
     repBtn.style.backgroundColor = "#25d366";
@@ -704,8 +706,7 @@
             facebook: shareFb,
             instagram: shareInsta,
             caption_fb: currentHistoryPost.facebook,
-            caption_ig: currentHistoryPost.instagram + "\n\n" + currentHistoryPost.hashtags,
-            image_url: currentHistoryPost.image_data // Envoi du lien de l'image déjà existante
+            caption_ig: currentHistoryPost.instagram + "\n\n" + currentHistoryPost.hashtags
         })
     })
     .then(response => response.json())
