@@ -28,12 +28,11 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_RESERVATION = "04 42 08 65 28"
 
 def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
-    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta."""
+    """Ajuste l'image au format HD optimal pour préserve le piqué sans saturer l'API Meta."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
-            # Redimensionnement HD proportionnel de haute qualité (LANCZOS)
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
             im.save(str(dst), "JPEG", quality=92)
     except Exception:
@@ -125,8 +124,7 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # CORRECTIF RECONNAISSANCE CHIRURGICALE : 
-        # On donne à manger à l'IA le fichier "dish_raw" (la photo brute de l'iPhone avec tous ses détails d'origine)
+        # RECONNAISSANCE BRUTE : Analyse du fichier iPhone natif non compressé
         with open(str(UPLOAD_FOLDER / "dish_raw"), "rb") as f_raw:
             dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
@@ -228,7 +226,8 @@ def save_decor_route(decor_name):
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    p = UPLOAD_FOLDER / f"decor_{name}.jpg"
+    # CORRECTIF DU SCRIPT : name remplacé par la variable d'entrée decor_name
+    p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
     return sync_decors_response()
