@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Finale — Envoi Réel Meta & Décors Unifiés)
+app.py — Interface web PubliChef V2 (Version Production Finale — Sublimation Culinaire Active V2)
 """
 
 import os
@@ -9,10 +9,11 @@ import shutil
 import traceback
 import gc
 import requests
+import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageOps
 
 load_dotenv()
 
@@ -25,6 +26,45 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 
 # Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
+
+class AdvancedFoodEnhancer:
+    """Moteur Culinaire Actif pour sublimer la photo de plat avant intégration."""
+    
+    @staticmethod
+    def enhance_culinary(image_input, image_output):
+        try:
+            with Image.open(str(image_input)) as im:
+                if im.mode != "RGB":
+                    im = im.convert("RGB")
+                
+                # --- Étape 1 : Raviver les couleurs (Saturation Culinaire active) ---
+                # On augmente la saturation de 40% pour faire ressortir les couleurs des aliments
+                enhancer_sat = ImageEnhance.Color(im)
+                im = enhancer_sat.enhance(1.4)
+                
+                # --- Étape 2 : Le Croustillant (Contraste local & Relief) ---
+                # On applique une légère augmentation de contraste pour donner du volume
+                enhancer_con = ImageEnhance.Contrast(im)
+                im = enhancer_con.enhance(1.2)
+                
+                # --- Étape 3 : La Brillance (Contrôle de la luminosité et des tons) ---
+                # On égalise légèrement pour déboucher les ombres, puis on rehausse la luminosité
+                im = ImageOps.autocontrast(im, cutoff=0.5)
+                enhancer_bri = ImageEnhance.Brightness(im)
+                im = enhancer_bri.enhance(1.1)
+                
+                # --- Étape 4 : La Netteté Finale ---
+                # Légère augmentation de la netteté pour les micro-détails
+                enhancer_sha = ImageEnhance.Sharpness(im)
+                im = enhancer_sha.enhance(1.3)
+                
+                # Sauvegarde en haute qualité avant détourage
+                im.save(str(image_output), "JPEG", quality=95)
+                return True
+        except Exception as e:
+            print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
+            shutil.copy(str(image_input), str(image_output))
+            return False
 
 def convert_to_jpg(src, dst):
     try:
@@ -72,14 +112,19 @@ def generate_v2():
     decor_name = request.form.get("decor", "salle")
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
-    env_jpg = UPLOAD_FOLDER / "env.jpg"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
+    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" # Nouveau fichier sublimé
+    env_jpg = UPLOAD_FOLDER / "env.jpg"
 
     # 1. Traitement et conversion de la photo du plat
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
     convert_to_jpg(dish_raw, dish_jpg)
+
+    # NOUEAU : SUBLIMATION CULINAIRE ACTIVE
+    # Le moteur rehausse les couleurs et le relief culinaire avant toute chose
+    AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
 
     # 2. Gestion unifiée du fond (Décor permanent ou upload direct)
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
@@ -97,18 +142,13 @@ def generate_v2():
         return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Veuillez cliquer sur Modifier pour ajouter votre photo."}), 400
 
     try:
-        from image_processor import ImageProcessor
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        processor = ImageProcessor()
-        enhanced_dish = processor.enhance(dish_jpg)
-        del processor
-        gc.collect()
-
+        # NOUS UTILISONS MAINTENANT 'dish_enhanced_jpg' POUR L'INTÉGRATION
         gemini = GeminiEngine()
         composed_path = gemini.compose_dish_in_environment(
-            enhanced_dish,
+            dish_enhanced_jpg, # Fichier sublimé
             env_jpg
         )
         del gemini
@@ -131,7 +171,6 @@ def generate_v2():
         ai = AIEngine()
         img_b64 = base64.b64encode(compressed).decode("utf-8")
         
-        # Sauvegarde physique locale du dernier rendu pour l'envoi API binaire
         last_output = UPLOAD_FOLDER / "last_output.jpg"
         with open(str(last_output), "wb") as f:
             f.write(compressed)
@@ -141,7 +180,6 @@ def generate_v2():
         instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
         
-        # Insertion du bloc de réservation pour le texte affiché sur l'application
         facebook_with_phone = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}"
         hashtags = ai.generate_hashtags(description)
         del ai
@@ -173,11 +211,9 @@ def publish_to_socials():
     share_fb = data.get("facebook", False)
     caption_fb = data.get("caption_fb", "")
 
-    # Sécurité : Vérification de l'activation du canal
     if not share_fb:
         return jsonify({"success": False, "error": "La case Facebook est décochée dans vos réglages ⚙️."}), 400
 
-    # Sécurité : Vérification de la présence du Token d'accès Meta
     if not META_ACCESS_TOKEN or META_ACCESS_TOKEN == "":
         return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
@@ -187,11 +223,9 @@ def publish_to_socials():
         if not image_path.exists():
             return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
 
-        # Sécurité texte : Injecte le numéro si l'utilisateur l'a effacé par mégarde lors de l'édition
         if PHONE_RESERVATION not in caption_fb:
             caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
 
-        # Requête binaire directe à l'API Graph Meta
         url = f"https://graph.facebook.com/v25.0/me/photos"
         payload = {
             'message': caption_fb,
@@ -215,7 +249,6 @@ def publish_to_socials():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# Synchronisation directe des images décors en Base64 sans modules tiers
 @app.route("/get_decors")
 def get_decors():
     decors_b64 = {}
