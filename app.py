@@ -362,16 +362,16 @@ def sync_decors_response():
     return jsonify({"success": True, "decors": decors_b64})
 
 
-# --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS ---
+# --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS (VERSION SUPRÊME) ---
 @app.route("/connect_meta_auto")
 def connect_meta_auto():
-    # Version allégée sans les scopes Instagram bloquants pour le mode développement
+    # Intégration complète de TOUTES les autorisations requises Facebook + Instagram
     meta_url = (
         "https://www.facebook.com/v25.0/dialog/oauth"
         "?client_id=1307525461448166"
         "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
         "&response_type=token"
-        "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
+        "&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     )
     
     return f'''
@@ -385,10 +385,10 @@ def connect_meta_auto():
         <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
             <h2 style="margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
             <p style="color:#aaa; font-size:14px; line-height:1.6; margin-bottom:35px;">
-                Mode Développement activé. Cliquez ci-dessous pour ouvrir la validation sécurisée Meta simplifiée.
+                Toutes vannes ouvertes. Cliquez ci-dessous pour lier définitivement votre compte Instagram Professionnel et votre page Facebook.
             </p>
             <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">
-                🔵 SE CONNECTER AVEC FACEBOOK
+                🔵 S'AUTHENTIFIER SUR LES RÉSEAUX
             </a>
         </div>
     </body>
