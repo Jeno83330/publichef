@@ -284,6 +284,13 @@
         <span id="histHashRaw" style="display:none"></span>
       </div>
     </div>
+
+    <div style="margin-top: 20px; margin-bottom: 20px;">
+      <button id="btn-republish" onclick="republishHistoryPost()" class="btn-primary" style="background-color: #25d366; color: #000; font-weight: 700;">
+        🔄 Republier ce post en 1 clic
+      </button>
+      <p id="republish-status" style="font-size: 13px; text-align: center; margin-top: 10px; font-weight: 500;"></p>
+    </div>
   </div>
 </div>
 
@@ -327,6 +334,7 @@
   let savedDecors = {};
   let modifyingDecor = null;
   let progressInterval = null;
+  let currentHistoryPost = null; // Stocke l'archive sélectionnée dans l'historique
 
   document.addEventListener('DOMContentLoaded', () => {
     loadSavedDecors();
@@ -429,7 +437,7 @@
     "Amélioration de la netteté et détourage...",
     "Calcul de l'intégration 3D dans le décor...",
     "Analyse harmonique des couleurs par l'IA...",
-    "Rédaction des légendes Instagram et Facebook...",
+    "Rédaction des légendes Meta...",
     "Sélection des hashtags tendances..."
   ];
 
@@ -579,7 +587,6 @@
     });
   }
 
-  // Cette variable retient si on était sur 'capture', 'loading' ou 'result'
   let currentCreationScreen = 'capture'; 
 
   function showScreen(name) {
@@ -636,6 +643,9 @@
   function openHistDetail(id) {
     const post = window._historyPosts.find(p => p.id === id);
     if (!post) return;
+    
+    currentHistoryPost = post; // Enregistrement du post historique sélectionné
+    
     document.getElementById('historyGrid').style.display = 'none';
     document.getElementById('historyDetail').style.display = 'block';
     document.getElementById('histDetailImg').src = post.image_data;
@@ -644,6 +654,15 @@
     const tags = post.hashtags.split(' ').filter(t => t.startsWith('#'));
     document.getElementById('histHashDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
     document.getElementById('histHashRaw').textContent = post.hashtags;
+    
+    // Réinitialisation de l'état du bouton republier
+    const repBtn = document.getElementById('btn-republish');
+    repBtn.disabled = false;
+    repBtn.style.backgroundColor = "#25d366";
+    repBtn.style.color = "#000";
+    repBtn.innerText = "🔄 Republier ce post en 1 clic";
+    document.getElementById('republish-status').innerText = "";
+
     document.querySelectorAll('#screen-history .result-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('#screen-history .result-content').forEach(c => c.classList.remove('active'));
     document.querySelector('#screen-history .result-tab').classList.add('active');
@@ -653,6 +672,65 @@
   function closeHistDetail() {
     document.getElementById('historyDetail').style.display = 'none';
     document.getElementById('historyGrid').style.display = 'grid';
+    currentHistoryPost = null;
+  }
+
+  function republishHistoryPost() {
+    if (!currentHistoryPost) return;
+
+    const repBtn = document.getElementById('btn-republish');
+    const statusTxt = document.getElementById('republish-status');
+    
+    const shareFb = localStorage.getItem('publichef_fb') !== 'false';
+    const shareInsta = localStorage.getItem('publichef_insta') !== 'false';
+
+    if (!shareFb && !shareInsta) {
+        statusTxt.innerText = "❌ Aucun réseau activé dans vos réglages.";
+        statusTxt.style.color = "var(--error)";
+        return;
+    }
+
+    repBtn.disabled = true;
+    repBtn.style.backgroundColor = "var(--card)";
+    repBtn.style.color = "var(--gray)";
+    repBtn.innerText = "Publication...";
+    statusTxt.innerText = "Envoi de l'archive aux serveurs Meta...";
+    statusTxt.style.color = "var(--white)";
+
+    fetch('/publish_to_socials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            facebook: shareFb,
+            instagram: shareInsta,
+            caption_fb: currentHistoryPost.facebook,
+            caption_ig: currentHistoryPost.instagram + "\n\n" + currentHistoryPost.hashtags,
+            image_url: currentHistoryPost.image_data // Envoi du lien de l'image déjà existante
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusTxt.innerText = "🎉 Reposté en ligne avec succès !";
+            statusTxt.style.color = "var(--success)";
+            repBtn.innerText = "✓ Republié !";
+        } else {
+            statusTxt.innerText = "❌ Erreur : " + data.error;
+            statusTxt.style.color = "var(--error)";
+            repBtn.disabled = false;
+            repBtn.style.backgroundColor = "#25d366";
+            repBtn.style.color = "#000";
+            repBtn.innerText = "🔄 Republier ce post en 1 clic";
+        }
+    })
+    .catch(err => {
+        statusTxt.innerText = "❌ Erreur de réseau.";
+        statusTxt.style.color = "var(--error)";
+        repBtn.disabled = false;
+        repBtn.style.backgroundColor = "#25d366";
+        repBtn.style.color = "#000";
+        repBtn.innerText = "🔄 Republier ce post en 1 clic";
+    });
   }
 
   function switchHistTab(tab, btn) {
