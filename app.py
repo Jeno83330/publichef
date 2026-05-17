@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Finale — Sublimation Culinaire Active V2)
+app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
 """
 
 import os
@@ -165,8 +165,12 @@ def generate_v2():
         del compressed
         gc.collect()
 
+        # CORRECTIF RECONNAISSANCE : L'IA analyse le plat brut (vrais reflets, vraies couleurs)
+        with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
+            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
+
         ai = AIEngine()
-        description = ai.describe_dish_from_bytes(img_b64)
+        description = ai.describe_dish_from_bytes(dish_raw_b64)
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
         
@@ -197,7 +201,6 @@ def publish_to_socials():
     if not data:
         return jsonify({"success": False, "error": "Données invalides"}), 400
 
-    # Récupération de la légende globale unifiée
     caption_fb = data.get("caption_fb", "")
 
     if not META_ACCESS_TOKEN:
@@ -219,8 +222,9 @@ def publish_to_socials():
             files = {'source': ('post.jpg', img_file, 'image/jpeg')}
             res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
 
+        # VÉRIFICATION STRICTE DE LA RÉPONSE DE FACEBOOK
         if "error" in res_fb:
-            return jsonify({"success": False, "error": f"Facebook: {res_fb['error'].get('message')}"}), 500
+            return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
             
         return jsonify({"success": True, "message": "Plat publié avec succès (et dupliqué automatiquement sur Instagram) !"})
     except Exception as e:
@@ -276,7 +280,6 @@ def sync_decors_response():
     return jsonify({"success": True, "decors": decors_b64})
 
 
-# --- INTERFACE DE CONNEXION DE SECOURS (VERSION CROSS-POSTING) ---
 @app.route("/connect_meta_auto")
 def connect_meta_auto():
     meta_url = (
@@ -290,19 +293,12 @@ def connect_meta_auto():
     return f'''
     <!DOCTYPE html>
     <html>
-    <head>
-        <title>Configuration Réseaux PubliChef</title>
-        <meta charset="utf-8">
-    </head>
-    <body style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
-        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
-            <h2 style="margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; line-height:1.6; margin-bottom:35px;">
-                Configuration simplifiée pour le cross-posting. Cliquez ci-dessous pour lier votre page Facebook.
-            </p>
-            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">
-                🔵 LIER LA PAGE FACEBOOK
-            </a>
+    <head><title>Configuration Réseaux PubliChef</title><meta charset="utf-8"></head>
+    <body style="font-family:sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
+        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px;">
+            <h2>🔑 Liaison PubliChef Pro</h2>
+            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration simplifiée pour le cross-posting. Cliquez ci-dessous pour lier votre page Facebook.</p>
+            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
         </div>
     </body>
     </html>
