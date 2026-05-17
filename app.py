@@ -236,7 +236,6 @@ def publish_to_socials():
 
         if "data" in page_res and len(page_res["data"]) > 0:
             page_id = page_res["data"][0].get("id")
-            # Requête pour trouver le compte Instagram Business rattaché à cette page Facebook
             ig_url = f"https://graph.facebook.com/v25.0/{page_id}"
             ig_res = requests.get(ig_url, params={'fields': 'instagram_business_account', 'access_token': META_ACCESS_TOKEN}).json()
             if "instagram_business_account" in ig_res:
@@ -277,7 +276,6 @@ def publish_to_socials():
             try:
                 print(f"[META API] Début processus Instagram (Compte ID: {instagram_business_id})...")
                 
-                # Étape A : Créer le conteneur de média (Upload de l'image) via formulaire multipart
                 container_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media"
                 payload_ig = {
                     'caption': caption_ig,
@@ -294,7 +292,6 @@ def publish_to_socials():
                     creation_id = res_container.get("id")
                     print(f"[META API] Conteneur Instagram créé. ID: {creation_id}. Publication...")
 
-                    # Étape B : Valider et publier le conteneur sur le fil Instagram
                     publish_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media_publish"
                     res_publish = requests.post(publish_url, data={
                         'creation_id': creation_id,
@@ -368,13 +365,13 @@ def sync_decors_response():
 # --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS ---
 @app.route("/connect_meta_auto")
 def connect_meta_auto():
-    # Modification de l'URI de redirection pour correspondre exactement au domaine autorisé sur Meta
+    # Version allégée sans les scopes Instagram bloquants pour le mode développement
     meta_url = (
         "https://www.facebook.com/v25.0/dialog/oauth"
         "?client_id=1307525461448166"
         "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
         "&response_type=token"
-        "&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts"
+        "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     )
     
     return f'''
@@ -388,7 +385,7 @@ def connect_meta_auto():
         <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
             <h2 style="margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
             <p style="color:#aaa; font-size:14px; line-height:1.6; margin-bottom:35px;">
-                Cliquez sur le bouton ci-dessous pour déclencher l'ouverture de la fenêtre sécurisée Meta et lier vos profils professionnels.
+                Mode Développement activé. Cliquez ci-dessous pour ouvrir la validation sécurisée Meta simplifiée.
             </p>
             <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">
                 🔵 SE CONNECTER AVEC FACEBOOK
