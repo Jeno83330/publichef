@@ -29,9 +29,10 @@
   .screen.active { display: flex; }
   .screen-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
   .screen-subtitle { color: var(--gray); font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
+  
   .upload-card { background: var(--card); border: 1.5px dashed var(--border); border-radius: 20px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all 0.3s; margin-bottom: 16px; position: relative; overflow: hidden; }
   .upload-card:hover, .upload-card.has-image { border-color: var(--gold); border-style: solid; }
-  .upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 5; }
   .upload-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; display: none; margin-bottom: 10px; }
   .upload-card.has-image .upload-preview { display: block; }
   .upload-card.has-image .upload-placeholder { display: none; }
@@ -39,22 +40,27 @@
   .upload-icon { font-size: 40px; margin-bottom: 12px; display: block; }
   .upload-label { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
   .upload-hint { font-size: 12px; color: var(--gray); }
-  .upload-badge { position: absolute; top: 12px; right: 12px; background: var(--gold); color: #000; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 50px; }
+  .upload-badge { position: absolute; top: 12px; right: 12px; background: var(--gold); color: #000; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 50px; z-index: 6; }
+  
   .decor-section { margin-bottom: 24px; }
   .section-label { font-size: 13px; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
   .decor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .decor-option { background: var(--card); border: 2px solid var(--border); border-radius: 16px; padding: 16px 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .decor-option { background: var(--card); border: 2px solid var(--border); border-radius: 16px; padding: 16px 12px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
   .decor-option.selected { border-color: var(--gold); background: rgba(245,200,66,0.05); }
   .decor-option .decor-icon { font-size: 28px; margin-bottom: 8px; display: block; }
   .decor-option .decor-name { font-size: 13px; font-weight: 500; }
   .decor-option.locked { opacity: 0.4; cursor: not-allowed; }
   .decor-option .lock-badge { font-size: 10px; color: var(--gray); margin-top: 4px; }
-  .decor-modify-btn { background: rgba(245,200,66,0.15); border: 1px solid var(--gold); color: var(--gold); padding: 4px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; margin-top: 6px; width: 100%; }
+  
+  /* BOUTON MODIFIER SUR LES OPTIONS DE DECOR */
+  .decor-modify-btn { background: rgba(245,200,66,0.15); border: 1px solid var(--gold); color: var(--gold); padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; position: relative; z-index: 15; }
   .decor-modify-btn:hover { background: var(--gold); color: #000; }
+  
   .btn-primary { background: var(--gold); color: #000; border: none; padding: 18px; border-radius: 16px; font-size: 16px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   .btn-secondary { background: var(--card); color: var(--white); border: 1px solid var(--border); padding: 14px; border-radius: 16px; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.2s; margin-top: 12px; }
+  
   #screen-loading { align-items: center; justify-content: center; text-align: center; }
   .loading-ring { width: 80px; height: 80px; border: 3px solid rgba(245,200,66,0.15); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 32px; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -69,6 +75,7 @@
   .step-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; transition: all 0.3s; }
   .loading-step-item.active .step-check { border-color: var(--gold); background: rgba(245,200,66,0.1); }
   .loading-step-item.done .step-check { border-color: var(--success); background: var(--success); color: white; }
+  
   .result-image { width: 100%; border-radius: 20px; margin-bottom: 20px; aspect-ratio: 4/5; object-fit: cover; }
   .result-tabs { display: flex; background: var(--card); border-radius: 12px; padding: 4px; margin-bottom: 20px; gap: 4px; }
   .result-tab { flex: 1; padding: 10px; border: none; background: transparent; color: var(--gray); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
@@ -76,7 +83,6 @@
   .result-content { display: none; }
   .result-content.active { display: block; }
   
-  /* AJUSTEMENT BOX DE TEXTE POUR COPIER EN BAS A DROITE */
   .caption-box { background: var(--card); border-radius: 16px; padding: 20px; padding-bottom: 60px; margin-bottom: 12px; position: relative; }
   .caption-platform { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .platform-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -87,12 +93,10 @@
   .caption-text[contenteditable="true"] { outline: 1px solid rgba(245,200,66,0.3); border-radius: 8px; padding: 4px; cursor: text; }
   .caption-text[contenteditable="true"]:focus { outline: 1px solid var(--gold); }
   
-  /* BOUTON MODIFIER RE-POSITIONNE EN BAS A GAUCHE */
   .edit-btn { position: absolute; bottom: 16px; left: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
   .edit-btn:hover { background: var(--gold); color: #000; }
   .edit-btn.editing { background: var(--success); border-color: var(--success); color: white; }
   
-  /* BOUTON COPIER RE-POSITIONNE EN BAS A DROITE */
   .copy-btn { position: absolute; bottom: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
   .copy-btn:hover, .copy-btn.copied { background: var(--gold); color: #000; }
   
@@ -105,6 +109,7 @@
   .history-card:hover { border-color: var(--gold); }
   .history-card img { width: 100%; aspect-ratio: 1; object-fit: cover; }
   .history-card-date { padding: 8px; font-size: 11px; color: var(--gray); }
+  
   nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; background: var(--card); border-top: 1px solid var(--border); display: flex; padding: 12px 0; z-index: 200; }
   .nav-btn { flex: 1; background: none; border: none; font-size: 22px; cursor: pointer; padding: 8px; transition: all 0.2s; }
 
@@ -136,6 +141,7 @@
   <div class="screen-title">Créez votre post</div>
   <div class="screen-subtitle">Photographiez votre plat et choisissez votre décor</div>
   <div class="camera-hint">📱 Sur iPhone : appuyez sur la zone photo pour ouvrir l'appareil photo</div>
+  
   <div class="upload-card" id="dishCard">
     <input type="file" id="dishInput" accept="image/*">
     <img class="upload-preview" id="dishPreview" src="" alt="">
@@ -146,8 +152,9 @@
     </div>
     <span class="upload-badge">Etape 1</span>
   </div>
+  
   <div class="decor-section">
-    <div class="section-label">Choisir un decor</div>
+    <div class="section-label">Choisir un décor permanent</div>
     <div class="decor-grid" id="decorGrid">
       <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
         <div id="decor-preview-salle" style="display:none;">
@@ -158,6 +165,7 @@
         <div id="decor-placeholder-salle">
           <span class="decor-icon">🏛️</span>
           <div class="decor-name">Salle du restaurant</div>
+          <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter la photo</button>
         </div>
       </div>
       <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
@@ -169,45 +177,39 @@
         <div id="decor-placeholder-terrasse">
           <span class="decor-icon">🌿</span>
           <div class="decor-name">Terrasse</div>
+          <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter la photo</button>
         </div>
-      </div>
-      <div class="decor-option locked">
-        <span class="decor-icon">🔒</span>
-        <div class="decor-name">Bar / Comptoir</div>
-        <div class="lock-badge">Option Pro</div>
-      </div>
-      <div class="decor-option locked">
-        <span class="decor-icon">🔒</span>
-        <div class="decor-name">Decor personnalise</div>
-        <div class="lock-badge">Option Pro</div>
       </div>
     </div>
     <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
   </div>
-  <div class="upload-card" id="envCard">
-    <input type="file" id="envInput" accept="image/*">
-    <img class="upload-preview" id="envPreview" src="" alt="">
-    <div class="upload-placeholder">
-      <span class="upload-icon">🏛️</span>
-      <div class="upload-label">Photo du decor</div>
-      <div class="upload-hint">Votre salle, terrasse...</div>
+  
+  <div class="decor-section">
+    <div class="section-label">Ou envoyer un décor à la volée</div>
+    <div class="upload-card" id="envCard">
+      <input type="file" id="envInput" accept="image/*">
+      <img class="upload-preview" id="envPreview" src="" alt="">
+      <div class="upload-placeholder">
+        <span class="upload-icon">📸</span>
+        <div class="upload-label">Photo d'un autre décor unique</div>
+        <div class="upload-hint">Si vous ne voulez pas utiliser la Salle ou la Terrasse</div>
+      </div>
+      <span class="upload-badge">Optionnel</span>
     </div>
-    <span class="upload-badge">Etape 2</span>
   </div>
+  
   <div class="error-box" id="error1"></div>
   <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>
-    Creer mon post
+    Créer mon post
   </button>
 </div>
 
 <div class="screen" id="screen-loading">
   <div class="loading-ring"></div>
   <div class="loading-title">Sublimation IA en cours...</div>
-  
   <div class="progress-bar-container">
     <div class="progress-bar" id="progressBar"></div>
   </div>
-
   <div class="loading-step" id="loadingStep">Analyse des images reçues...</div>
   <div class="loading-steps-list">
     <div class="loading-step-item" id="lstep1"><div class="step-check">1</div><span>Détourage & Amélioration du plat</span></div>
@@ -436,7 +438,7 @@
   }
 
   function checkReady() {
-    const hasEnv = envFile || savedDecors[selectedDecor];
+    const hasEnv = envFile || savedDecors[selectedDecor] || selectedDecor === 'salle' || selectedDecor === 'terrasse';
     document.getElementById('btnGenerate').disabled = !(dishFile && hasEnv);
   }
 
@@ -494,21 +496,16 @@
     const error1 = document.getElementById('error1');
     error1.style.display = 'none';
     if (!dishFile) { error1.textContent = 'Veuillez uploader la photo du plat'; error1.style.display = 'block'; return; }
-    if (!envFile && !savedDecors[selectedDecor]) { error1.textContent = 'Veuillez uploader une photo de decor'; error1.style.display = 'block'; return; }
     
     showScreen('loading');
     startProgress();
 
     const formData = new FormData();
     formData.append('dish', dishFile);
-    
     formData.append('decor', selectedDecor);
     
     if (envFile) {
       formData.append('environment', envFile);
-    } else {
-      const blob = await fetch(savedDecors[selectedDecor]).then(r => r.blob());
-      formData.append('environment', blob, 'env.jpg');
     }
     
     try {
@@ -522,10 +519,8 @@
       document.getElementById('resultImage').src = data.image;
       document.getElementById('igText').textContent = data.instagram;
       
-      // FILTRAGE DU DOUBLON GÉNÉRÉ PAR L'IA (On nettoie le texte brut reçu avant affichage)
       let cleanedFacebookText = data.facebook;
       cleanedFacebookText = cleanedFacebookText.replace(/Réservations?\s*:\s*\[?TELEPHONE\]?/gi, '');
-      // On retire les lignes vides superflues qui se seraient créées après la suppression
       cleanedFacebookText = cleanedFacebookText.replace(/\n{3,}/g, '\n\n').trim();
       
       document.getElementById('fbText').textContent = cleanedFacebookText;
@@ -625,9 +620,9 @@
   function resetApp() {
     dishFile = null; envFile = null;
     document.getElementById('dishInput').value = '';
-    document.getElementById('envInput').value = '';
+    if(document.getElementById('envInput')) document.getElementById('envInput').value = '';
     document.getElementById('dishCard').classList.remove('has-image');
-    document.getElementById('envCard').classList.remove('has-image');
+    if(document.getElementById('envCard')) document.getElementById('envCard').classList.remove('has-image');
     
     currentCreationScreen = 'capture'; 
     showScreen('capture');
@@ -668,7 +663,6 @@
     document.getElementById('histDetailImg').src = post.image_data;
     document.getElementById('histIgText').textContent = post.instagram;
     
-    // NETTOYAGE DU DOUBLON ÉGALEMENT DANS L'HISTORIQUE
     let cleanedHistFb = post.facebook;
     cleanedHistFb = cleanedHistFb.replace(/Réservations?\s*:\s*\[?TELEPHONE\]?/gi, '');
     cleanedHistFb = cleanedHistFb.replace(/\n{3,}/g, '\n\n').trim();
@@ -783,6 +777,7 @@
     document.getElementById(`tab-${tab}`).classList.add('active');
   }
 
+  // RECTIFICATION POUR SAVOIR L'ÉDITION SUR MOBILE (textContent)
   function toggleEdit(id, btn) {
     const el = document.getElementById(id);
     const isEditing = el.contentEditable === 'true';
@@ -823,7 +818,7 @@
 
   function copyText(id, btn) {
     navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
-      btn.textContent = 'Copie !';
+      btn.textContent = 'Copié !';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
     });
