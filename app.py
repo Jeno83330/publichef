@@ -368,11 +368,11 @@ def sync_decors_response():
 # --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS ---
 @app.route("/connect_meta_auto")
 def connect_meta_auto():
-    # Lien direct assemblé par le serveur avec ton vrai App ID
+    # Modification de l'URI de redirection pour correspondre exactement au domaine autorisé sur Meta
     meta_url = (
         "https://www.facebook.com/v25.0/dialog/oauth"
         "?client_id=1307525461448166"
-        "&redirect_uri=https://developers.facebook.com/tools/explorer/"
+        "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
         "&response_type=token"
         "&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts"
     )
