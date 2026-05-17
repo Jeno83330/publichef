@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PubliChef</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -18,7 +18,7 @@
     --error: #EF4444;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--white); min-height: 100vh; max-width: 480px; margin: 0 auto; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--white); min-height: 100vh; max-width: 480px; margin: 0 auto; overflow-x: hidden; }
   header { padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
   .logo img { height: 44px; width: auto; max-width: 160px; border-radius: 8px; display: block; }
   .step-indicator { display: flex; gap: 6px; align-items: center; }
@@ -75,20 +75,27 @@
   .result-tab.active { background: var(--gold); color: #000; font-weight: 600; }
   .result-content { display: none; }
   .result-content.active { display: block; }
-  .caption-box { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 12px; position: relative; }
+  
+  /* AJUSTEMENT BOX DE TEXTE POUR COPIER EN BAS A DROITE */
+  .caption-box { background: var(--card); border-radius: 16px; padding: 20px; padding-bottom: 60px; margin-bottom: 12px; position: relative; }
   .caption-platform { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .platform-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
   .platform-icon.ig { background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); }
   .platform-icon.fb { background: #1877F2; }
   .platform-name { font-size: 13px; font-weight: 600; }
-  .caption-text { font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.85); white-space: pre-wrap; }
+  .caption-text { font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.85); white-space: pre-wrap; padding-bottom: 10px; }
   .caption-text[contenteditable="true"] { outline: 1px solid rgba(245,200,66,0.3); border-radius: 8px; padding: 4px; cursor: text; }
   .caption-text[contenteditable="true"]:focus { outline: 1px solid var(--gold); }
-  .edit-btn { position: absolute; bottom: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+  
+  /* BOUTON MODIFIER RE-POSITIONNE EN BAS A GAUCHE */
+  .edit-btn { position: absolute; bottom: 16px; left: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
   .edit-btn:hover { background: var(--gold); color: #000; }
   .edit-btn.editing { background: var(--success); border-color: var(--success); color: white; }
-  .copy-btn { position: absolute; top: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+  
+  /* BOUTON COPIER RE-POSITIONNE EN BAS A DROITE */
+  .copy-btn { position: absolute; bottom: 16px; right: 16px; background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.2); color: var(--gold); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
   .copy-btn:hover, .copy-btn.copied { background: var(--gold); color: #000; }
+  
   .hashtags-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .hashtag { background: rgba(245,200,66,0.08); color: var(--gold); padding: 5px 12px; border-radius: 50px; font-size: 12px; font-weight: 500; }
   .error-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 16px; padding: 16px 20px; color: #FCA5A5; font-size: 14px; margin-bottom: 20px; display: none; }
@@ -214,30 +221,30 @@
 <div class="screen" id="screen-result">
   <img class="result-image" id="resultImage" src="" alt="Resultat">
   <div class="result-tabs">
-    <button class="result-tab active" onclick="switchTab('instagram', this)">Instagram</button>
-    <button class="result-tab" onclick="switchTab('facebook', this)">Facebook</button>
+    <button class="result-tab" onclick="switchTab('instagram', this)">Instagram</button>
+    <button class="result-tab active" onclick="switchTab('facebook', this)">Facebook</button>
     <button class="result-tab" onclick="switchTab('hashtags', this)">Hashtags</button>
   </div>
-  <div class="result-content active" id="tab-instagram">
+  <div class="result-content" id="tab-instagram">
     <div class="caption-box">
-      <button class="copy-btn" onclick="copyText('igText', this)">Copier</button>
       <button class="edit-btn" id="edit-ig" onclick="toggleEdit('igText', this)">Modifier</button>
+      <button class="copy-btn" onclick="copyText('igText', this)">Copier</button>
       <div class="caption-platform"><div class="platform-icon ig">📱</div><div class="platform-name">Instagram</div></div>
       <div class="caption-text" id="igText"></div>
     </div>
   </div>
-  <div class="result-content" id="tab-facebook">
+  <div class="result-content active" id="tab-facebook">
     <div class="caption-box">
-      <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
       <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
+      <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
       <div class="caption-platform"><div class="platform-icon fb">👥</div><div class="platform-name">Facebook</div></div>
       <div class="caption-text" id="fbText"></div>
     </div>
   </div>
   <div class="result-content" id="tab-hashtags">
     <div class="caption-box">
-      <button class="copy-btn" onclick="copyText('hashtagsRaw', this)">Copier</button>
       <button class="edit-btn" id="edit-hash" onclick="toggleEditHashtags(this)">Modifier</button>
+      <button class="copy-btn" onclick="copyText('hashtagsRaw', this)">Copier</button>
       <div class="hashtags-wrap" id="hashtagsDisplay"></div>
       <div class="caption-text" id="hashtagsEdit" style="display:none;"></div>
       <span id="hashtagsRaw" style="display:none"></span>
@@ -495,7 +502,6 @@
     const formData = new FormData();
     formData.append('dish', dishFile);
     
-    // TRANSMISSION DU PARAMÈTRE DE DÉCOR SÉLECTIONNÉ AU SERVEUR PYTHON
     formData.append('decor', selectedDecor);
     
     if (envFile) {
@@ -515,7 +521,15 @@
       
       document.getElementById('resultImage').src = data.image;
       document.getElementById('igText').textContent = data.instagram;
-      document.getElementById('fbText').textContent = data.facebook;
+      
+      // FILTRAGE DU DOUBLON GÉNÉRÉ PAR L'IA (On nettoie le texte brut reçu avant affichage)
+      let cleanedFacebookText = data.facebook;
+      cleanedFacebookText = cleanedFacebookText.replace(/Réservations?\s*:\s*\[?TELEPHONE\]?/gi, '');
+      // On retire les lignes vides superflues qui se seraient créées après la suppression
+      cleanedFacebookText = cleanedFacebookText.replace(/\n{3,}/g, '\n\n').trim();
+      
+      document.getElementById('fbText').textContent = cleanedFacebookText;
+      
       const tags = data.hashtags.split(' ').filter(t => t.startsWith('#'));
       document.getElementById('hashtagsDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
       document.getElementById('hashtagsRaw').textContent = data.hashtags;
@@ -653,7 +667,13 @@
     document.getElementById('historyDetail').style.display = 'block';
     document.getElementById('histDetailImg').src = post.image_data;
     document.getElementById('histIgText').textContent = post.instagram;
-    document.getElementById('histFbText').textContent = post.facebook;
+    
+    // NETTOYAGE DU DOUBLON ÉGALEMENT DANS L'HISTORIQUE
+    let cleanedHistFb = post.facebook;
+    cleanedHistFb = cleanedHistFb.replace(/Réservations?\s*:\s*\[?TELEPHONE\]?/gi, '');
+    cleanedHistFb = cleanedHistFb.replace(/\n{3,}/g, '\n\n').trim();
+    
+    document.getElementById('histFbText').textContent = cleanedHistFb;
     const tags = post.hashtags.split(' ').filter(t => t.startsWith('#'));
     document.getElementById('histHashDisplay').innerHTML = tags.map(t => `<span class="hashtag">${t}</span>`).join('');
     document.getElementById('histHashRaw').textContent = post.hashtags;
@@ -705,7 +725,7 @@
         body: JSON.stringify({
             facebook: shareFb,
             instagram: shareInsta,
-            caption_fb: currentHistoryPost.facebook,
+            caption_fb: document.getElementById('histFbText').textContent,
             caption_ig: currentHistoryPost.instagram + "\n\n" + currentHistoryPost.hashtags
         })
     })
