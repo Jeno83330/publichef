@@ -33,7 +33,6 @@ def resize_and_convert_to_jpg(src, dst, max_size=(1200, 1200)):
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
-            # Redimensionnement proportionnel si l'image est immense
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
             im.save(str(dst), "JPEG", quality=85)
     except Exception:
@@ -49,20 +48,20 @@ class AdvancedFoodEnhancer:
                 if im.mode != "RGB":
                     im = im.convert("RGB")
                 
-                # --- Étape 1 : Raviver les couleurs (Saturation Culinaire active) ---
+                # --- Étape 1 : Saturation Culinaire ---
                 enhancer_sat = ImageEnhance.Color(im)
                 im = enhancer_sat.enhance(1.4)
                 
-                # --- Étape 2 : Le Croustillant (Contraste local & Relief) ---
+                # --- Étape 2 : Relief & Contraste ---
                 enhancer_con = ImageEnhance.Contrast(im)
                 im = enhancer_con.enhance(1.2)
                 
-                # --- Étape 3 : La Brillance ---
+                # --- Étape 3 : Brillance ---
                 im = ImageOps.autocontrast(im, cutoff=0.5)
                 enhancer_bri = ImageEnhance.Brightness(im)
                 im = enhancer_bri.enhance(1.1)
                 
-                # --- Étape 4 : La Netteté Finale ---
+                # --- Étape 4 : Netteté ---
                 enhancer_sha = ImageEnhance.Sharpness(im)
                 im = enhancer_sha.enhance(1.3)
                 
@@ -114,18 +113,14 @@ def generate_v2():
     dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    # 1. Traitement et conversion immédiate de la photo du plat pour la RAM
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
     resize_and_convert_to_jpg(dish_raw, dish_jpg)
 
-    # SUBLIMATION CULINAIRE ACTIVE
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
 
-    # 2. Gestion du fond d'ambiance
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-    
     if "environment" in request.files and request.files["environment"].filename != '':
         env_file = request.files["environment"]
         env_raw = UPLOAD_FOLDER / "env_raw"
@@ -142,9 +137,7 @@ def generate_v2():
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        # Libération de la RAM avant d'appeler l'IA de composition
         gc.collect()
-
         gemini = GeminiEngine()
         composed_path = gemini.compose_dish_in_environment(dish_enhanced_jpg, env_jpg)
         del gemini
@@ -165,7 +158,6 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # CORRECTIF RECONNAISSANCE : L'IA analyse le plat brut (vrais reflets, vraies couleurs)
         with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
             dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
@@ -174,8 +166,12 @@ def generate_v2():
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
         
-        # Fusion automatique : Légende identique (Texte + Téléphone + Hashtags)
-        facebook_final = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
+        # NETTOYAGE RADICAL DES DOUBLONS DE TELEPHONE AVANT FUSION
+        facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
+        facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
+        
+        # Reconstruction propre de la légende unifiée unique
+        facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
         
         del ai
         gc.collect()
@@ -222,11 +218,10 @@ def publish_to_socials():
             files = {'source': ('post.jpg', img_file, 'image/jpeg')}
             res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
 
-        # VÉRIFICATION STRICTE DE LA RÉPONSE DE FACEBOOK
         if "error" in res_fb:
             return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
             
-        return jsonify({"success": True, "message": "Plat publié avec succès (et dupliqué automatiquement sur Instagram) !"})
+        return jsonify({"success": True, "message": "Plat publié avec succès !"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -289,7 +284,6 @@ def connect_meta_auto():
         "&response_type=token"
         "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     )
-    
     return f'''
     <!DOCTYPE html>
     <html>
@@ -297,13 +291,12 @@ def connect_meta_auto():
     <body style="font-family:sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
         <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px;">
             <h2>🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration simplifiée pour le cross-posting. Cliquez ci-dessous pour lier votre page Facebook.</p>
+            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration pour le cross-posting. Liez votre page Facebook.</p>
             <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
         </div>
     </body>
     </html>
     '''
-
 
 if __name__ == "__main__":
     app.run(debug=False, port=5000, host="0.0.0.0")
