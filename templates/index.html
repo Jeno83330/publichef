@@ -20,7 +20,7 @@
             --gray-light: #AEAEB2;
             --success: #34C759;
             --error: #FF3B30;
-            --nav-bg: rgba(19, 19, 26, 0.95);
+            --nav-bg: #13131A;
         }
 
         * {
@@ -37,9 +37,8 @@
             min-height: 100vh;
             max-width: 480px;
             margin: 0 auto;
-            overflow-x: hidden;
-            position: relative;
-            padding-bottom: 110px;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
@@ -48,12 +47,7 @@
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            z-index: 100;
+            background: #0A0A0F;
             height: 70px;
         }
 
@@ -75,7 +69,7 @@
             height: 8px;
             border-radius: 50%;
             background: var(--border);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s ease;
         }
 
         .step-dot.active {
@@ -88,11 +82,19 @@
             background: var(--success);
         }
 
+        /* CONTENEUR GLOBAL DE VERROUILLAGE */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
         .screen {
             display: none;
-            padding: 24px 24px 20px;
+            padding: 24px;
             flex-direction: column;
             animation: fadeIn 0.4s ease-out;
+            flex: 1;
         }
 
         .screen.active {
@@ -126,10 +128,9 @@
             padding: 36px 24px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-bottom: 24px;
             position: relative;
             overflow: hidden;
+            margin-bottom: 24px;
         }
 
         .upload-card.has-image {
@@ -177,7 +178,6 @@
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 6px;
-            color: var(--white);
         }
 
         .upload-hint {
@@ -212,7 +212,6 @@
             padding: 16px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.25s ease;
             position: relative;
             display: flex;
             flex-direction: column;
@@ -229,13 +228,11 @@
         .decor-option .decor-icon {
             font-size: 32px;
             margin-bottom: 8px;
-            display: block;
         }
 
         .decor-option .decor-name {
             font-size: 14px;
             font-weight: 600;
-            color: rgba(255,255,255,0.9);
         }
 
         .decor-option.locked {
@@ -254,7 +251,6 @@
             cursor: pointer;
             margin-top: 8px;
             width: 90%;
-            transition: all 0.2s;
             position: relative;
             z-index: 15;
         }
@@ -269,14 +265,12 @@
             font-weight: 700;
             cursor: pointer;
             width: 100%;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
             box-shadow: 0 4px 16px rgba(245, 200, 66, 0.15);
-            margin-top: 10px;
-            margin-bottom: 20px;
+            margin-top: auto;
         }
 
         .btn-primary:disabled {
@@ -295,14 +289,7 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            transition: all 0.2s;
             margin-top: 12px;
-        }
-
-        #screen-loading {
-            align-items: center;
-            justify-content: center;
-            text-align: center;
         }
 
         .loading-container {
@@ -311,6 +298,7 @@
             border-radius: 28px;
             border: 1px solid var(--border);
             width: 100%;
+            margin: auto 0;
         }
 
         .loading-ring {
@@ -332,6 +320,7 @@
             font-size: 24px;
             font-weight: 700;
             margin-bottom: 12px;
+            text-align: center;
         }
 
         .loading-desc {
@@ -340,6 +329,7 @@
             margin-bottom: 28px;
             font-weight: 600;
             min-height: 22px;
+            text-align: center;
         }
 
         .progress-bar-container {
@@ -374,21 +364,15 @@
             border-radius: 14px;
             padding: 4px;
             margin-bottom: 20px;
-            gap: 4px;
             border: 1px solid rgba(255,255,255,0.02);
         }
 
         .result-tab {
             flex: 1;
             padding: 12px;
-            border: none;
-            background: transparent;
-            color: var(--gray);
+            color: var(--white);
             font-size: 14px;
             font-weight: 600;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.25s ease;
             text-align: center;
         }
 
@@ -396,7 +380,7 @@
             background: var(--card);
             border-radius: 20px;
             padding: 20px;
-            padding-bottom: 68px;
+            padding-bottom: 75px;
             margin-bottom: 16px;
             position: relative;
             border: 1px solid var(--border);
@@ -428,7 +412,6 @@
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
             z-index: 10;
         }
 
@@ -478,22 +461,15 @@
             font-weight: 600;
         }
 
+        /* POSITIONNEMENT RELATIF NATUREL EN BAS DU FLUX */
         nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            max-width: 480px;
-            margin: 0 auto;
+            width: 100%;
             background: var(--nav-bg);
             border-top: 1px solid var(--border);
             display: flex;
-            padding: 12px 0;
-            z-index: 999;
-            height: 80px;
-            padding-bottom: 28px;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            padding: 16px 0 32px;
+            margin-top: auto;
+            height: auto;
         }
 
         .nav-btn {
@@ -502,7 +478,7 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            opacity: 0.4;
+            opacity: 0.3;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -525,115 +501,115 @@
     </div>
 </header>
 
-<div class="screen active" id="screen-capture">
-    <div class="screen-title">Créez votre post</div>
-    <div class="screen-subtitle">Photographiez votre plat de cuisine et choisissez l'ambiance désirée.</div>
-    
-    <div class="upload-card" id="dishCard">
-        <input type="file" id="dishInput" accept="image/*">
-        <img class="upload-preview" id="dishPreview" src="" alt="Aperçu du plat">
-        <div class="upload-placeholder">
-            <span class="upload-icon">📸</span>
-            <div class="upload-label">Photo du plat</div>
-            <div class="upload-hint">Appuyez pour déclencher l'appareil photo ou la galerie</div>
-        </div>
-    </div>
-    
-    <div class="decor-section">
-        <div class="section-label">Sélection du décor permanent</div>
-        <div class="decor-grid" id="decorGrid">
-            <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
-                <div id="decor-preview-salle" style="display:none; width: 100%;">
-                    <img id="decor-img-salle" src="" alt="" style="width:100%; height:75px; object-fit:cover; border-radius:10px; margin-bottom:6px;">
-                    <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Salle du restaurant</div>
-                    <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier la photo</button>
-                </div>
-                <div id="decor-placeholder-salle">
-                    <span class="decor-icon">🏛️</span>
-                    <div class="decor-name">Salle du restaurant</div>
-                    <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter la photo</button>
-                </div>
-            </div>
-            <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
-                <div id="decor-preview-terrasse" style="display:none; width: 100%;">
-                    <img id="decor-img-terrasse" src="" alt="" style="width:100%; height:75px; object-fit:cover; border-radius:10px; margin-bottom:6px;">
-                    <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Terrasse</div>
-                    <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier la photo</button>
-                </div>
-                <div id="decor-placeholder-terrasse">
-                    <span class="decor-icon">🌿</span>
-                    <div class="decor-name">Terrasse</div>
-                    <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter la photo</button>
-                </div>
-            </div>
-            <div class="decor-option locked">
-                <span class="decor-icon">🔒</span>
-                <div class="decor-name" style="color:var(--gray);">Bar / Comptoir</div>
-                <div style="font-size:11px; color:var(--gray); margin-top:4px;">Option Pro</div>
-            </div>
-            <div class="decor-option locked">
-                <span class="decor-icon">🔒</span>
-                <div class="decor-name" style="color:var(--gray);">Décor personnalisé</div>
-                <div style="font-size:11px; color:var(--gray); margin-top:4px;">Option Pro</div>
+<div class="main-content">
+    <div class="screen active" id="screen-capture">
+        <div class="screen-title">Créez votre post</div>
+        <div class="screen-subtitle">Photographiez votre plat de cuisine et choisissez l'ambiance désirée.</div>
+        
+        <div class="upload-card" id="dishCard">
+            <input type="file" id="dishInput" accept="image/*">
+            <img class="upload-preview" id="dishPreview" src="" alt="Aperçu du plat">
+            <div class="upload-placeholder">
+                <span class="upload-icon">📸</span>
+                <div class="upload-label">Photo du plat</div>
+                <div class="upload-hint">Appuyez pour ouvrir l'appareil photo ou la galerie</div>
             </div>
         </div>
-        <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
+        
+        <div class="decor-section">
+            <div class="section-label">Sélection du décor permanent</div>
+            <div class="decor-grid" id="decorGrid">
+                <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
+                    <div id="decor-preview-salle" style="display:none; width: 100%;">
+                        <img id="decor-img-salle" src="" alt="" style="width:100%; height:75px; object-fit:cover; border-radius:10px; margin-bottom:6px;">
+                        <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Salle du restaurant</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier</button>
+                    </div>
+                    <div id="decor-placeholder-salle">
+                        <span class="decor-icon">🏛️</span>
+                        <div class="decor-name">Salle du restaurant</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter</button>
+                    </div>
+                </div>
+                <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
+                    <div id="decor-preview-terrasse" style="display:none; width: 100%;">
+                        <img id="decor-img-terrasse" src="" alt="" style="width:100%; height:75px; object-fit:cover; border-radius:10px; margin-bottom:6px;">
+                        <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Terrasse</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier</button>
+                    </div>
+                    <div id="decor-placeholder-terrasse">
+                        <span class="decor-icon">🌿</span>
+                        <div class="decor-name">Terrasse</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter</button>
+                    </div>
+                </div>
+                <div class="decor-option locked">
+                    <span class="decor-icon">🔒</span>
+                    <div class="decor-name" style="color:var(--gray);">Bar / Comptoir</div>
+                </div>
+                <div class="decor-option locked">
+                    <span class="decor-icon">🔒</span>
+                    <div class="decor-name" style="color:var(--gray);">Décor personnalisé</div>
+                </div>
+            </div>
+            <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
+        </div>
+        
+        <div class="error-container" id="errorBlock">Le serveur met du temps à répondre. Réessayez la génération.</div>
+        <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>✨ Créer mon post</button>
     </div>
-    
-    <div class="error-container" id="errorBlock">Le serveur met du temps à répondre. Réessayez la génération.</div>
-    <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>✨ Créer mon post</button>
-</div>
 
-<div class="screen" id="screen-loading">
-    <div class="loading-container">
-        <div class="loading-ring"></div>
-        <div class="loading-title">Sublimation Active...</div>
-        <div class="loading-desc" id="loadingPhaseText">Étape 1 : Amélioration des textures culinaires...</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progressBar"></div>
+    <div class="screen" id="screen-loading">
+        <div class="loading-container">
+            <div class="loading-ring"></div>
+            <div class="loading-title">Sublimation Active...</div>
+            <div class="loading-desc" id="loadingPhaseText">Étape 1 : Amélioration des textures culinaires...</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="screen" id="screen-result">
-    <img class="result-image" id="resultImage" src="" alt="Post finalisé">
-    
-    <div class="result-tabs">
-        <div class="result-tab active">Publication Unique (FB + Insta)</div>
-    </div>
-    
-    <div class="caption-box">
-        <div class="caption-text" id="fbText"></div>
-        <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
-        <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
-    </div>
-
-    <div style="margin-top: 20px; margin-bottom: 24px;">
-        <button id="btn-one-click" onclick="publishPost()" class="btn-primary" style="background: #25D366; color: #000; font-weight: 700; box-shadow: 0 4px 16px rgba(37,211,102,0.2);">
-            🚀 Publier en 1 clic
-        </button>
-        <p id="publish-status" style="font-size: 13.5px; text-align: center; margin-top: 12px; font-weight: 600;"></p>
-    </div>
-    <button class="btn-secondary" onclick="resetApp()">📸 Faire un nouveau post</button>
-</div>
-
-<div class="screen" id="screen-history">
-    <div class="screen-title" style="margin-bottom:24px;">Historique des créations</div>
-    <div id="historyGrid" class="history-grid"></div>
-    
-    <div id="historyDetail" style="display:none;">
-        <button class="btn-secondary" onclick="closeHistDetail()" style="margin-bottom:20px; margin-top: 0; padding: 12px;">← Retour à la grille</button>
-        <img id="histDetailImg" style="width:100%; border-radius:20px; margin-bottom:20px;" src="" alt="">
+    <div class="screen" id="screen-result">
+        <img class="result-image" id="resultImage" src="" alt="Post finalisé">
+        
+        <div class="result-tabs">
+            <div class="result-tab active">Publication Unique (FB + Insta)</div>
+        </div>
         
         <div class="caption-box">
-            <div class="caption-text" id="histFbText"></div>
-            <button class="copy-btn" onclick="copyText('histFbText', this)">Copier</button>
+            <div class="caption-text" id="fbText"></div>
+            <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
+            <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
         </div>
-        <div style="margin-top: 20px; margin-bottom: 24px;">
-            <button id="btn-republish" onclick="republishHistoryPost()" class="btn-primary" style="background: #25D366; color: #000; font-weight: 700;">
-                🔄 Republier ce post en 1 clic
+
+        <div style="margin-top: 10px;">
+            <button id="btn-one-click" onclick="publishPost()" class="btn-primary" style="background: #25D366; color: #000; font-weight: 700; box-shadow: 0 4px 16px rgba(37,211,102,0.2);">
+                🚀 Publier en 1 clic
             </button>
-            <p id="republish-status" style="font-size: 13.5px; text-align: center; margin-top: 12px; font-weight: 600;"></p>
+            <p id="publish-status" style="font-size: 13.5px; text-align: center; margin-top: 12px; font-weight: 600;"></p>
+        </div>
+        <button class="btn-secondary" onclick="resetApp()">📸 Faire un nouveau post</button>
+    </div>
+
+    <div class="screen" id="screen-history">
+        <div class="screen-title" style="margin-bottom:24px;">Historique des créations</div>
+        <div id="historyGrid" class="history-grid"></div>
+        
+        <div id="historyDetail" style="display:none;">
+            <button class="btn-secondary" onclick="closeHistDetail()" style="margin-bottom:20px; padding: 12px;">← Retour à la grille</button>
+            <img id="histDetailImg" style="width:100%; border-radius:20px; margin-bottom:20px;" src="" alt="">
+            
+            <div class="caption-box">
+                <div class="caption-text" id="histFbText"></div>
+                <button class="copy-btn" onclick="copyText('histFbText', this)">Copier</button>
+            </div>
+            <div>
+                <button id="btn-republish" onclick="republishHistoryPost()" class="btn-primary" style="background: #25D366; color: #000; font-weight: 700;">
+                    🔄 Republier ce post en 1 clic
+                </button>
+                <p id="republish-status" style="font-size: 13.5px; text-align: center; margin-top: 12px; font-weight: 600;"></p>
+            </div>
         </div>
     </div>
 </div>
@@ -713,7 +689,7 @@
     async function startGeneration() {
         document.getElementById('errorBlock').style.display = 'none';
         
-        // Force les états d'avancement d'origine : pastille 1 validée au vert
+        // Coche 1 au vert
         document.getElementById('dot1').className = "step-dot done";
         document.getElementById('dot2').className = "step-dot active";
         document.getElementById('dot3').className = "step-dot";
@@ -775,7 +751,7 @@
                 document.getElementById('resultImage').src = data.image;
                 document.getElementById('fbText').textContent = data.facebook;
                 
-                // Force le passage de toutes les coches d'action au vert à l'affichage
+                // Toutes les coches passent au vert (done)
                 document.getElementById('dot1').className = "step-dot done";
                 document.getElementById('dot2').className = "step-dot done";
                 document.getElementById('dot3').className = "step-dot done";
