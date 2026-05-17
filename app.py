@@ -113,7 +113,7 @@ def generate_v2():
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
-    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" # Nouveau fichier sublimé
+    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
     # 1. Traitement et conversion de la photo du plat
@@ -122,8 +122,7 @@ def generate_v2():
         f.write(dish_file.stream.read())
     convert_to_jpg(dish_raw, dish_jpg)
 
-    # NOUEAU : SUBLIMATION CULINAIRE ACTIVE
-    # Le moteur rehausse les couleurs et le relief culinaire avant toute chose
+    # SUBLIMATION CULINAIRE ACTIVE
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
 
     # 2. Gestion unifiée du fond (Décor permanent ou upload direct)
@@ -145,10 +144,10 @@ def generate_v2():
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        # NOUS UTILISONS MAINTENANT 'dish_enhanced_jpg' POUR L'INTÉGRATION
+        # Utilisation de la photo sublimée pour l'intégration
         gemini = GeminiEngine()
         composed_path = gemini.compose_dish_in_environment(
-            dish_enhanced_jpg, # Fichier sublimé
+            dish_enhanced_jpg, 
             env_jpg
         )
         del gemini
