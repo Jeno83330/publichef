@@ -84,9 +84,6 @@ def generate_v2():
         f.write(dish_file.stream.read())
     resize_and_convert_to_jpg(dish_raw, dish_jpg)
 
-    # RESTAURATION DU RENDU : Le filtre automatique agressif AdvancedFoodEnhancer a été
-    # désactivé ici pour envoyer la photo HD brute et naturelle de ton iPhone à Gemini.
-
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if "environment" in request.files and request.files["environment"].filename != '':
         env_file = request.files["environment"]
@@ -106,7 +103,6 @@ def generate_v2():
 
         gc.collect()
         gemini = GeminiEngine()
-        # Fusion basée sur l'image HD propre
         composed_path = gemini.compose_dish_in_environment(dish_jpg, env_jpg)
         del gemini
         gc.collect()
@@ -115,11 +111,9 @@ def generate_v2():
             if img.mode != "RGB":
                 img = img.convert("RGB")
             
-            # STABILISATION DU FORMAT : Redimensionnement HD accepté par Facebook et Instagram
             img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
             
             buffer = io.BytesIO()
-            # Qualité fixée à 92 : Rendu net sans le surpoids qui causait le rejet des données
             img.save(buffer, format="JPEG", quality=92)
             compressed = buffer.getvalue()
 
@@ -131,7 +125,9 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
+        # CORRECTIF RECONNAISSANCE CHIRURGICALE : 
+        # On donne à manger à l'IA le fichier "dish_raw" (la photo brute de l'iPhone avec tous ses détails d'origine)
+        with open(str(UPLOAD_FOLDER / "dish_raw"), "rb") as f_raw:
             dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
         ai = AIEngine()
@@ -139,11 +135,9 @@ def generate_v2():
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
         
-        # NETTOYAGE RADICAL DES DOUBLONS DE TELEPHONE AVANT FUSION
         facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
         facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
         
-        # Reconstruction propre de la légende unifiée unique
         facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
         
         del ai
