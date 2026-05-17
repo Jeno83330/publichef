@@ -142,7 +142,7 @@ def generate_v2():
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        # Libération agressive de la RAM avant d'appeler l'IA de composition
+        # Libération de la RAM avant d'appeler l'IA de composition
         gc.collect()
 
         gemini = GeminiEngine()
@@ -170,7 +170,7 @@ def generate_v2():
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
         
-        # Fusion automatique en un seul bloc de texte propre
+        # Fusion automatique : Légende identique (Texte + Téléphone + Hashtags)
         facebook_final = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
         
         del ai
@@ -197,11 +197,11 @@ def publish_to_socials():
     if not data:
         return jsonify({"success": False, "error": "Données invalides"}), 400
 
-    # On récupère le texte global
+    # Récupération de la légende globale unifiée
     caption_fb = data.get("caption_fb", "")
 
     if not META_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré."}), 400
+        return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
     image_path = UPLOAD_FOLDER / "last_output.jpg"
     if not image_path.exists():
