@@ -208,44 +208,112 @@ def publish_to_socials():
         return jsonify({"success": False, "error": "Données invalides"}), 400
 
     share_fb = data.get("facebook", False)
+    share_ig = data.get("instagram", False)
     caption_fb = data.get("caption_fb", "")
+    caption_ig = data.get("caption_ig", "")
 
-    if not share_fb:
-        return jsonify({"success": False, "error": "La case Facebook est décochée dans vos réglages ⚙️."}), 400
+    if not share_fb and not share_ig:
+        return jsonify({"success": False, "error": "Aucun réseau social sélectionné."}), 400
 
-    if not META_ACCESS_TOKEN or META_ACCESS_TOKEN == "":
+    if not META_ACCESS_TOKEN:
         return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
+    image_path = UPLOAD_FOLDER / "last_output.jpg"
+    if not image_path.exists():
+        return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
+
+    fb_success = False
+    ig_success = False
+    error_msg = []
+
+    # --- 1. SÉCURISATION ET RÉCUPÉRATION DES COMPTES PRO ---
     try:
-        print("[META API] Envoi réel du média vers le fil Facebook...")
-        image_path = UPLOAD_FOLDER / "last_output.jpg"
-        if not image_path.exists():
-            return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
-
-        if PHONE_RESERVATION not in caption_fb:
-            caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
-
-        url = f"https://graph.facebook.com/v25.0/me/photos"
-        payload = {
-            'message': caption_fb,
-            'access_token': META_ACCESS_TOKEN
-        }
+        page_url = f"https://graph.facebook.com/v25.0/me/accounts"
+        page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
         
-        with open(str(image_path), 'rb') as img_file:
-            files = {
-                'source': ('post.jpg', img_file, 'image/jpeg')
-            }
-            response = requests.post(url, data=payload, files=files)
-            res_data = response.json()
+        page_id = None
+        instagram_business_id = None
 
-        if "error" in res_data:
-            return jsonify({"success": False, "error": res_data["error"].get("message", "Erreur Meta API")}), 400
-            
-        print(f"[META API] Publication en ligne réussie ! ID Post : {res_data.get('id')}")
-        return jsonify({"success": True, "fb_post_id": res_data.get('id')})
-
+        if "data" in page_res and len(page_res["data"]) > 0:
+            page_id = page_res["data"][0].get("id")
+            # Requête pour trouver le compte Instagram Business rattaché à cette page Facebook
+            ig_url = f"https://graph.facebook.com/v25.0/{page_id}"
+            ig_res = requests.get(ig_url, params={'fields': 'instagram_business_account', 'access_token': META_ACCESS_TOKEN}).json()
+            if "instagram_business_account" in ig_res:
+                instagram_business_id = ig_res["instagram_business_account"].get("id")
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"[META API INFO] Échec récupération ID dynamiques : {e}")
+
+    if not page_id:
+        page_id = "me"
+
+    # --- 2. ENVOI SUR FACEBOOK ---
+    if share_fb:
+        try:
+            print(f"[META API] Publication sur la page Facebook {page_id}...")
+            if PHONE_RESERVATION not in caption_fb:
+                caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
+
+            fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
+            payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
+            
+            with open(str(image_path), 'rb') as img_file:
+                files = {'source': ('post.jpg', img_file, 'image/jpeg')}
+                res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
+
+            if "error" in res_fb:
+                error_msg.append(f"Facebook: {res_fb['error'].get('message')}")
+            else:
+                fb_success = True
+                print("[META API] Succès Facebook")
+        except Exception as e:
+            error_msg.append(f"Facebook Exception: {str(e)}")
+
+    # --- 3. ENVOI SUR INSTAGRAM ---
+    if share_ig:
+        if not instagram_business_id:
+            error_msg.append("Instagram: Aucun compte pro associé trouvé sur cette page Facebook.")
+        else:
+            try:
+                print(f"[META API] Début processus Instagram (Compte ID: {instagram_business_id})...")
+                
+                # Étape A : Créer le conteneur de média (Upload de l'image) via formulaire multipart
+                container_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media"
+                payload_ig = {
+                    'caption': caption_ig,
+                    'access_token': META_ACCESS_TOKEN
+                }
+                
+                with open(str(image_path), 'rb') as img_file:
+                    files_ig = {'image_file': ('post.jpg', img_file, 'image/jpeg')}
+                    res_container = requests.post(container_url, data=payload_ig, files=files_ig).json()
+
+                if "error" in res_container:
+                    error_msg.append(f"Instagram (Conteneur): {res_container['error'].get('message')}")
+                else:
+                    creation_id = res_container.get("id")
+                    print(f"[META API] Conteneur Instagram créé. ID: {creation_id}. Publication...")
+
+                    # Étape B : Valider et publier le conteneur sur le fil Instagram
+                    publish_url = f"https://graph.facebook.com/v25.0/{instagram_business_id}/media_publish"
+                    res_publish = requests.post(publish_url, data={
+                        'creation_id': creation_id,
+                        'access_token': META_ACCESS_TOKEN
+                    }).json()
+
+                    if "error" in res_publish:
+                        error_msg.append(f"Instagram (Publication): {res_publish['error'].get('message')}")
+                    else:
+                        ig_success = True
+                        print("[META API] Succès Instagram")
+            except Exception as e:
+                error_msg.append(f"Instagram Exception: {str(e)}")
+
+    # --- 4. BILAN DE LA PUBLICATION ---
+    if (share_fb and not fb_success) or (share_ig and not ig_success):
+        return jsonify({"success": False, "error": " | ".join(error_msg)}), 500
+
+    return jsonify({"success": True, "message": "Publication validée avec succès !"})
 
 
 @app.route("/get_decors")
@@ -295,6 +363,40 @@ def sync_decors_response():
         else:
             decors_b64[name] = ""
     return jsonify({"success": True, "decors": decors_b64})
+
+
+# --- INTERFACE DE CONNEXION SÉCURISÉE DE SECOURS ---
+@app.route("/connect_meta_auto")
+def connect_meta_auto():
+    # Lien direct assemblé par le serveur avec ton vrai App ID
+    meta_url = (
+        "https://www.facebook.com/v25.0/dialog/oauth"
+        "?client_id=1307525461448166"
+        "&redirect_uri=https://developers.facebook.com/tools/explorer/"
+        "&response_type=token"
+        "&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts"
+    )
+    
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Configuration Réseaux PubliChef</title>
+        <meta charset="utf-8">
+    </head>
+    <body style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
+        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
+            <h2 style="margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
+            <p style="color:#aaa; font-size:14px; line-height:1.6; margin-bottom:35px;">
+                Cliquez sur le bouton ci-dessous pour déclencher l'ouverture de la fenêtre sécurisée Meta et lier vos profils professionnels.
+            </p>
+            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">
+                🔵 SE CONNECTER AVEC FACEBOOK
+            </a>
+        </div>
+    </body>
+    </html>
+    '''
 
 
 if __name__ == "__main__":
