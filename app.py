@@ -148,4 +148,4 @@ def generate_v2():
         return jsonify({"error": f"Erreur de l'IA (Verifiez vos cles API) : {str(e)}"}), 200
 
 if __name__ == "__main__":
-    app.run(debug=False, port=10000, host="0.0.0.0")
+    app.run(debug=False, port=5000, host="0.0.0.0")
