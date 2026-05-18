@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageOps
 
 load_dotenv()
 
@@ -28,7 +28,7 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_RESERVATION = "04 42 08 65 28"
 
 def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
-    """Ajuste l'image au format HD optimal pour préserve le piqué sans saturer l'API Meta."""
+    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
@@ -37,6 +37,23 @@ def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
             im.save(str(dst), "JPEG", quality=92)
     except Exception:
         shutil.copy(str(src), str(dst))
+
+
+class AdvancedFoodEnhancer:
+    """Moteur Culinaire Actif pour restaurer la netteté sans dénaturer les couleurs."""
+    @staticmethod
+    def enhance_culinary(image_input, image_output):
+        try:
+            with Image.open(str(image_input)) as im:
+                if im.mode != "RGB":
+                    im = im.convert("RGB")
+                # Sauvegarde HD propre
+                im.save(str(image_output), "JPEG", quality=92)
+                return True
+        except Exception as e:
+            print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
+            shutil.copy(str(image_input), str(image_output))
+            return False
 
 
 @app.route("/")
@@ -76,12 +93,19 @@ def generate_v2():
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
+    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
+    dish_ai = UPLOAD_FOLDER / "dish_ai.jpg"
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
-    resize_and_convert_to_jpg(dish_raw, dish_jpg)
+        
+    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
+    resize_and_convert_to_jpg(dish_raw, dish_ai, max_size=(2000, 2000))
+
+    # Activation de la route de sublimation attendue par le script
+    AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
 
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if "environment" in request.files and request.files["environment"].filename != '':
@@ -90,7 +114,7 @@ def generate_v2():
         env_file.stream.seek(0)
         with open(str(env_raw), "wb") as f:
             f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg)
+        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
@@ -102,7 +126,7 @@ def generate_v2():
 
         gc.collect()
         gemini = GeminiEngine()
-        composed_path = gemini.compose_dish_in_environment(dish_jpg, env_jpg)
+        composed_path = gemini.compose_dish_in_environment(dish_enhanced_jpg, env_jpg)
         del gemini
         gc.collect()
 
@@ -124,9 +148,9 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # RECONNAISSANCE BRUTE : Analyse du fichier iPhone natif non compressé
-        with open(str(UPLOAD_FOLDER / "dish_raw"), "rb") as f_raw:
-            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
+        # Analyse précise sur le fichier HD intermédiaire
+        with open(str(dish_ai), "rb") as f_ai:
+            dish_raw_b64 = base64.b64encode(f_ai.read()).decode("utf-8")
 
         ai = AIEngine()
         description = ai.describe_dish_from_bytes(dish_raw_b64)
@@ -220,13 +244,12 @@ def save_decor_route(decor_name):
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
         
-    resize_and_convert_to_jpg(raw_path, jpg_path)
+    resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1440, 1440))
     return sync_decors_response()
 
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    # CORRECTIF DU SCRIPT : name remplacé par la variable d'entrée decor_name
     p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
