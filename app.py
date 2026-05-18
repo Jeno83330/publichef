@@ -168,6 +168,8 @@ def generate_v2():
 
     except Exception as e:
         gc.collect()
+        # LA LIGNE MAGIQUE : On force l'erreur à s'écrire en gros dans les logs Render
+        print("\n" + "="*50 + "\n[CRITICAL CRASH IA DETECTED] :\n" + traceback.format_exc() + "="*50 + "\n")
         return jsonify({"error": f"Crash du moteur IA : {str(e)}"}), 500
 
 
