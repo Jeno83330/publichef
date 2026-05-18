@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
+app.py — Interface web PubliChef V2 (Version Diagnostic Debug)
 """
 
 import os
@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from PIL import Image, ImageEnhance, ImageOps
+from PIL import Image
 
 load_dotenv()
 
@@ -37,23 +37,6 @@ def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
             im.save(str(dst), "JPEG", quality=92)
     except Exception:
         shutil.copy(str(src), str(dst))
-
-
-class AdvancedFoodEnhancer:
-    """Moteur Culinaire Actif pour restaurer la netteté sans dénaturer les couleurs."""
-    @staticmethod
-    def enhance_culinary(image_input, image_output):
-        try:
-            with Image.open(str(image_input)) as im:
-                if im.mode != "RGB":
-                    im = im.convert("RGB")
-                # Sauvegarde HD propre
-                im.save(str(image_output), "JPEG", quality=92)
-                return True
-        except Exception as e:
-            print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
-            shutil.copy(str(image_input), str(image_output))
-            return False
 
 
 @app.route("/")
@@ -97,30 +80,29 @@ def generate_v2():
     dish_ai = UPLOAD_FOLDER / "dish_ai.jpg"
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    dish_file.stream.seek(0)
-    with open(str(dish_raw), "wb") as f:
-        f.write(dish_file.stream.read())
-        
-    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
-    resize_and_convert_to_jpg(dish_raw, dish_ai, max_size=(2000, 2000))
-
-    # Activation de la route de sublimation attendue par le script
-    AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
-
-    saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-    if "environment" in request.files and request.files["environment"].filename != '':
-        env_file = request.files["environment"]
-        env_raw = UPLOAD_FOLDER / "env_raw"
-        env_file.stream.seek(0)
-        with open(str(env_raw), "wb") as f:
-            f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
-    elif saved_decor_path.exists():
-        shutil.copy(str(saved_decor_path), str(env_jpg))
-    else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
-
     try:
+        dish_file.stream.seek(0)
+        with open(str(dish_raw), "wb") as f:
+            f.write(dish_file.stream.read())
+            
+        resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
+        resize_and_convert_to_jpg(dish_raw, dish_ai, max_size=(2000, 2000))
+
+        shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
+
+        saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+        if "environment" in request.files and request.files["environment"].filename != '':
+            env_file = request.files["environment"]
+            env_raw = UPLOAD_FOLDER / "env_raw"
+            env_file.stream.seek(0)
+            with open(str(env_raw), "wb") as f:
+                f.write(env_file.stream.read())
+            resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
+        elif saved_decor_path.exists():
+            shutil.copy(str(saved_decor_path), str(env_jpg))
+        else:
+            return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
@@ -133,9 +115,7 @@ def generate_v2():
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            
             img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
-            
             buffer = io.BytesIO()
             img.save(buffer, format="JPEG", quality=92)
             compressed = buffer.getvalue()
@@ -148,7 +128,6 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # Analyse précise sur le fichier HD intermédiaire
         with open(str(dish_ai), "rb") as f_ai:
             dish_raw_b64 = base64.b64encode(f_ai.read()).decode("utf-8")
 
@@ -159,7 +138,6 @@ def generate_v2():
         
         facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
         facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
-        
         facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
         
         del ai
@@ -177,6 +155,7 @@ def generate_v2():
 
     except Exception as e:
         gc.collect()
+        # CAPTURE DE FLUX : On force l'application à renvoyer le vrai coupable à l'écran
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
@@ -315,4 +294,4 @@ def connect_meta_auto():
     '''
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5000, host="0.0.0.0")
+    app.run(debug=True, port=5000, host="0.0.0.0") # Mode diagnostic activé
