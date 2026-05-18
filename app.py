@@ -1,7 +1,3 @@
-"""
-app.py — PubliChef V2 — Version stable finale
-"""
-
 import os
 import io
 import base64
@@ -85,7 +81,7 @@ def delete_post(post_id):
 @app.route("/generate_v2", methods=["POST"])
 def generate_v2():
     if "dish" not in request.files:
-        return jsonify({"error": "Photo du plat manquante"}), 400
+        return jsonify({"error": "Photo du plat manquante dans l'envoi."}), 400
 
     dish_file = request.files["dish"]
     decor_name = request.form.get("decor", "salle")
@@ -96,7 +92,6 @@ def generate_v2():
     dish_hq_jpg = UPLOAD_FOLDER / "dish_hq.jpg"
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    # Sauvegarde et redimensionnement du plat
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
@@ -105,11 +100,9 @@ def generate_v2():
     resize_and_convert_to_jpg(dish_raw, dish_hq_jpg, max_size=(1200, 1200))
     gc.collect()
 
-    # Amélioration culinaire
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
     gc.collect()
 
-    # Récupération du décor
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if "environment" in request.files and request.files["environment"].filename != '':
         env_file = request.files["environment"]
@@ -121,7 +114,7 @@ def generate_v2():
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Ajoutez une photo de décor."}), 400
+        return jsonify({"error": f"Le decor '{decor_name}' est introuvable. Veuillez d'abord toucher sa case pour charger une photo."}), 400
 
     try:
         from gemini_engine import GeminiEngine
@@ -175,7 +168,7 @@ def generate_v2():
 
     except Exception as e:
         gc.collect()
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        return jsonify({"error": f"Crash du moteur IA : {str(e)}"}), 500
 
 
 @app.route("/publish_to_socials", methods=["POST"])
@@ -183,48 +176,31 @@ def publish_to_socials():
     data = request.get_json()
     if not data:
         return jsonify({"success": False, "error": "Données invalides"}), 400
-
     caption_fb = data.get("caption_fb", "")
-
     if not META_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "META_ACCESS_TOKEN non configuré sur Render."}), 400
-
+        return jsonify({"success": False, "error": "META_ACCESS_TOKEN non configuré."}), 400
     image_path = UPLOAD_FOLDER / "last_output.jpg"
     if not image_path.exists():
-        return jsonify({"success": False, "error": "Image introuvable. Recréez le post."}), 400
-
+        return jsonify({"success": False, "error": "Image introuvable."}), 400
     try:
         page_url = "https://graph.facebook.com/v25.0/me/accounts"
         page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}, timeout=10).json()
         page_id = page_res["data"][0].get("id") if "data" in page_res and page_res["data"] else "me"
-
         fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
         payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
-
         with open(str(image_path), 'rb') as img_file:
             files = {'source': ('post.jpg', img_file, 'image/jpeg')}
             res_fb = requests.post(fb_endpoint, data=payload_fb, files=files, timeout=20).json()
-
         if "error" in res_fb:
             return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
-
         return jsonify({"success": True, "message": "Publié avec succès !"})
-
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/get_decors")
 def get_decors():
-    decors_b64 = {}
-    for name in ["salle", "terrasse"]:
-        p = UPLOAD_FOLDER / f"decor_{name}.jpg"
-        if p.exists():
-            with open(p, "rb") as f:
-                decors_b64[name] = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        else:
-            decors_b64[name] = ""
-    return jsonify(decors_b64)
+    return sync_decors_response()
 
 
 @app.route("/save_decor/<decor_name>", methods=["POST"])
@@ -261,27 +237,5 @@ def sync_decors_response():
     return jsonify({"success": True, "decors": decors_b64})
 
 
-@app.route("/connect_meta_auto")
-def connect_meta_auto():
-    meta_url = (
-        "https://www.facebook.com/v25.0/dialog/oauth"
-        "?client_id=1307525461448166"
-        "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
-        "&response_type=token"
-        "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
-    )
-    return f'''<!DOCTYPE html>
-    <html>
-    <head><title>Configuration Réseaux PubliChef</title><meta charset="utf-8"></head>
-    <body style="font-family:sans-serif;text-align:center;padding-top:120px;background:#121212;color:#fff;">
-        <div style="max-width:500px;margin:0 auto;padding:40px 30px;background:#1e1e1e;border-radius:12px;">
-            <h2>🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa;font-size:14px;margin-bottom:35px;">Liez votre page Facebook pour le cross-posting automatique.</p>
-            <a href="{meta_url}" style="display:inline-block;background:#0084ff;color:#fff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
-        </div>
-    </body>
-    </html>'''
-
-
 if __name__ == "__main__":
-    app.run(debug=False, port=5000, host="0.0.0.0")
+    app.run(debug=False, port=10000, host="0.0.0.0")
