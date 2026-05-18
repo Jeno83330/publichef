@@ -11,7 +11,7 @@ class GeminiEngine:
         from PIL import Image
         import io
 
-        print(f"[IMAGE ENGINE 2.5] Traitement avec le modèle de pointe : {self.model}")
+        print(f"[IMAGE ENGINE 2.5] Traitement avec le modèle : {self.model}")
         
         dish_img = Image.open(dish_path)
         env_img = Image.open(env_path)
@@ -34,35 +34,37 @@ class GeminiEngine:
             
             output_path = os.path.dirname(dish_path) + "/last_composed.jpg"
             
-            # --- Nouvelle méthode d'extraction standard pour Gemini 2.5 ---
-            # On vérifie d'abord si on peut récupérer les octets générés directement
-            try:
-                generated_bytes = response.generated_bytes
-                if generated_bytes:
-                    with open(output_path, "wb") as f_out:
-                        f_out.write(generated_bytes)
-                    return output_path
-            except AttributeError:
-                pass
+            # Technique de secours universelle : analyse de l'objet response complet
+            # 1. Tentative par les octets directs du modèle 2.5
+            if hasattr(response, 'generated_bytes') and response.generated_bytes:
+                with open(output_path, "wb") as f_out:
+                    f_out.write(response.generated_bytes)
+                return output_path
 
-            # Si non, on extrait via les parts de manière moderne
+            # 2. Extraction via les structures de texte ou d'inline data de secours
             if response.candidates and response.candidates[0].content.parts:
-                for part in response.candidates[0].content.parts:
-                    # Sur l'API moderne, la donnée est souvent directement dans part.inline_data.data ou accessible par les octets
-                    data = None
-                    if hasattr(part, 'inline_data') and part.inline_data:
-                        data = part.inline_data.data
-                    elif hasattr(part, 'text') and not part.text:
-                        # Parfois les données d'image se trouvent dans les octets de la part
-                        data = part.bytes
+                part = response.candidates[0].content.parts[0]
+                
+                # Récupération des données binaires peu importe l'attribut nommé par Google
+                data = None
+                for attr in ['inline_data', 'bytes', 'data']:
+                    if hasattr(part, attr) and getattr(part, attr):
+                        val = getattr(part, attr)
+                        data = val.data if hasattr(val, 'data') else val
+                        break
+                
+                if data and isinstance(data, bytes):
+                    with open(output_path, "wb") as f_out:
+                        f_out.write(data)
+                    return output_path
 
-                    if data:
-                        with open(output_path, "wb") as f_out:
-                            f_out.write(data)
-                        return output_path
-            
-            raise Exception("Impossible d'extraire les données binaires de l'image de la réponse.")
+            # 3. Si Google renvoie exceptionnellement un format structuré par erreur, on extrait le texte brut
+            if response.text:
+                print("[WARN] Données reçues sous forme de texte, tentative de conversion...")
+                raise Exception("L'API a renvoyé du texte au lieu d'une image JPEG.")
+                
+            raise Exception("Aucun flux binaire d'image détecté dans la réponse Gemini 2.5.")
             
         except Exception as e:
-            print(f"[CRITICAL IMAGE ENGINE 2.5] Échec du traitement : {str(e)}")
+            print(f"[CRITICAL IMAGE ENGINE 2.5] Échec : {str(e)}")
             raise e
