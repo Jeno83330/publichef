@@ -1,20 +1,20 @@
 import os
 import base64
+import traceback
 import google.generativeai as genai
 
 class AIEngine:
     def __init__(self):
-        # On récupère la clé Google déjà existante et configurée sur Render
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        # Scan de toutes les variables possibles pour trouver la clé Google sur Render
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY")
         if not api_key:
-            raise ValueError("Clé API Gemini (GEMINI_API_KEY ou GOOGLE_API_KEY) introuvable dans les variables d'environnement.")
+            print("[AI ENGINE] CRITICAL: Aucune clé API trouvée dans l'environnement Render !")
         
         genai.configure(api_key=api_key)
-        # On utilise le modèle Flash v1.5, ultra-rapide, économique et parfait pour la vision + texte
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # UPGRADE : Passage sur le modèle PRO (plume littéraire et marketing supérieure)
+        self.model = genai.GenerativeModel('gemini-1.5-pro')
 
     def describe_dish_from_bytes(self, b64_data):
-        """Gemini regarde la photo brute en haute qualité et l'analyse"""
         try:
             raw_bytes = base64.b64decode(b64_data)
             response = self.model.generate_content([
@@ -23,23 +23,24 @@ class AIEngine:
             ])
             return response.text.strip()
         except Exception as e:
-            # Fallback amical pour éviter le crash de l'application
-            return f"Un magnifique plat signature préparé avec passion par notre chef. (Erreur diagnostic: {str(e)})"
+            print(f"\n[AI ENGINE ERROR DESCRIBE] :\n{traceback.format_exc()}\n")
+            return "Un magnifique plat signature préparé avec passion par notre chef."
 
     def generate_facebook_caption(self, description):
-        """Gemini rédige la légende commerciale pour Facebook & Insta"""
         try:
-            prompt = f"En t'appuyant sur cette description de plat : '{description}', rédige une légende captivante, chaleureuse et vendeuse pour les réseaux sociaux d'un restaurant. Donne faim, utilise un ton professionnel et convivial de restaurateur qui s'adresse à ses clients fidèles. Ne parle pas de réservations ou de numéro de téléphone dans ton texte, le reste de l'application s'en charge automatiquement."
+            prompt = f"En t'appuyant sur cette description de plat : '{description}', rédige une légende de 3-4 phrases captivante, très chaleureuse et vendeuse pour les réseaux sociaux d'un restaurant. Donne faim, utilise des émojis pertinents et adopte un ton convivial de restaurateur passionné. Ne parle jamais de réservations ou de numéro de téléphone."
             response = self.model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
-            return "Une nouvelle création gourmande vient de sortir des cuisines ! Un pur délice à venir découvrir dès aujourd'hui à notre table. Éveillez vos papilles ! ✨"
+            print(f"\n[AI ENGINE ERROR CAPTION] :\n{traceback.format_exc()}\n")
+            # Changement du texte de secours pour repérer si l'erreur persiste
+            return "Une suggestion exclusive à découvrir aujourd'hui ! Notre équipe a hâte de vous faire partager cette explosion de saveurs artisanales. Réservez votre table ! ✨"
 
     def generate_hashtags(self, description):
-        """Gemini génère le bloc de hashtags pertinents"""
         try:
-            prompt = f"Génère une seule ligne contenant entre 5 et 8 hashtags culinaires pertinents, branchés et séparés par des espaces, basés sur cette description : '{description}'."
+            prompt = f"Génère une seule ligne contenant entre 5 et 8 hashtags culinaires ciblés et séparés par des espaces, basés sur cette description : '{description}'."
             response = self.model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
-            return "#restaurant #instafood #faitmaison #gastronomie #chef #suggestions"
+            print(f"\n[AI ENGINE ERROR HASHTAGS] :\n{traceback.format_exc()}\n")
+            return "#restaurant #gastronomie #faitmaison #foodporn #chef"

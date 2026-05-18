@@ -19,14 +19,14 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_RESERVATION = "04 42 08 65 28"
 
-
-def resize_and_convert_to_jpg(src, dst, max_size=(900, 900)):
+# RECALIBRAGE HD : On remonte à 1200px et 90% de qualité
+def resize_and_convert_to_jpg(src, dst, max_size=(1200, 1200)):
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
-            im.save(str(dst), "JPEG", quality=82)
+            im.save(str(dst), "JPEG", quality=90)
     except Exception:
         shutil.copy(str(src), str(dst))
 
@@ -43,7 +43,7 @@ class AdvancedFoodEnhancer:
                 im = ImageOps.autocontrast(im, cutoff=0.5)
                 im = ImageEnhance.Brightness(im).enhance(1.08)
                 im = ImageEnhance.Sharpness(im).enhance(1.30)
-                im.save(str(image_output), "JPEG", quality=88)
+                im.save(str(image_output), "JPEG", quality=90)
                 return True
         except Exception as e:
             print(f"[ERROR ENHANCER] : {str(e)}")
@@ -96,8 +96,8 @@ def generate_v2():
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
 
-    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(900, 900))
-    resize_and_convert_to_jpg(dish_raw, dish_hq_jpg, max_size=(1200, 1200))
+    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1200, 1200))
+    resize_and_convert_to_jpg(dish_raw, dish_hq_jpg, max_size=(1400, 1400))
     gc.collect()
 
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
@@ -110,11 +110,11 @@ def generate_v2():
         env_file.stream.seek(0)
         with open(str(env_raw), "wb") as f:
             f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(900, 900))
+        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1200, 1200))
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Le decor '{decor_name}' est introuvable. Veuillez d'abord toucher sa case pour charger une photo."}), 400
+        return jsonify({"error": f"Le decor '{decor_name}' est introuvable."}), 400
 
     try:
         from gemini_engine import GeminiEngine
@@ -130,7 +130,7 @@ def generate_v2():
             if img.mode != "RGB":
                 img = img.convert("RGB")
             buffer = io.BytesIO()
-            img.save(buffer, format="JPEG", quality=85)
+            img.save(buffer, format="JPEG", quality=90)
             compressed = buffer.getvalue()
 
         last_output = UPLOAD_FOLDER / "last_output.jpg"
@@ -168,9 +168,8 @@ def generate_v2():
 
     except Exception as e:
         gc.collect()
-        # LA LIGNE MAGIQUE : On force l'erreur à s'écrire en gros dans les logs Render
-        print("\n" + "="*50 + "\n[CRITICAL CRASH IA DETECTED] :\n" + traceback.format_exc() + "="*50 + "\n")
-        return jsonify({"error": f"Crash du moteur IA : {str(e)}"}), 500
+        print("\n" + "="*50 + "\n[CRITICAL GENERATION ERROR] :\n" + traceback.format_exc() + "="*50 + "\n")
+        return jsonify({"error": f"Crash global : {str(e)}"}), 500
 
 
 @app.route("/publish_to_socials", methods=["POST"])
@@ -215,7 +214,7 @@ def save_decor_route(decor_name):
     file.stream.seek(0)
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
-    resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
+    resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1200, 1200))
     return sync_decors_response()
 
 
