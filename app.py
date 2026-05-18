@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
+app.py — Interface web PubliChef V2 (Version Production Finale — Envoi Réel Meta & Décors Unifiés)
 """
 
 import os
@@ -9,7 +9,6 @@ import shutil
 import traceback
 import gc
 import requests
-import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -27,15 +26,12 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 # Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
 
-def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
-    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta."""
+def convert_to_jpg(src, dst):
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
-            # Redimensionnement HD proportionnel de haute qualité (LANCZOS)
-            im.thumbnail(max_size, Image.Resampling.LANCZOS)
-            im.save(str(dst), "JPEG", quality=92)
+            im.save(str(dst), "JPEG")
     except Exception:
         shutil.copy(str(src), str(dst))
 
@@ -76,86 +72,90 @@ def generate_v2():
     decor_name = request.form.get("decor", "salle")
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
-    dish_jpg = UPLOAD_FOLDER / "dish.jpg"
     env_jpg = UPLOAD_FOLDER / "env.jpg"
+    dish_jpg = UPLOAD_FOLDER / "dish.jpg"
 
+    # 1. Traitement et conversion de la photo du plat
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
-    resize_and_convert_to_jpg(dish_raw, dish_jpg)
+    convert_to_jpg(dish_raw, dish_jpg)
 
-    # RESTAURATION DU RENDU : Le filtre automatique agressif AdvancedFoodEnhancer a été
-    # désactivé ici pour envoyer la photo HD brute et naturelle de ton iPhone à Gemini.
-
+    # 2. Gestion unifiée du fond (Décor permanent ou upload direct)
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+    
     if "environment" in request.files and request.files["environment"].filename != '':
         env_file = request.files["environment"]
         env_raw = UPLOAD_FOLDER / "env_raw"
         env_file.stream.seek(0)
         with open(str(env_raw), "wb") as f:
             f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg)
+        convert_to_jpg(env_raw, env_jpg)
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Veuillez cliquer sur Modifier pour ajouter votre photo."}), 400
 
     try:
+        from image_processor import ImageProcessor
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
+        processor = ImageProcessor()
+        enhanced_dish = processor.enhance(dish_jpg)
+        del processor
         gc.collect()
+
         gemini = GeminiEngine()
-        # Fusion basée sur l'image HD propre
-        composed_path = gemini.compose_dish_in_environment(dish_jpg, env_jpg)
+        composed_path = gemini.compose_dish_in_environment(
+            enhanced_dish,
+            env_jpg
+        )
         del gemini
         gc.collect()
 
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            
-            # STABILISATION DU FORMAT : Redimensionnement HD accepté par Facebook et Instagram
-            img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
-            
-            buffer = io.BytesIO()
-            # Qualité fixée à 92 : Rendu net sans le surpoids qui causait le rejet des données
-            img.save(buffer, format="JPEG", quality=92)
+            quality = 85
+            while True:
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=quality)
+                if len(buffer.getvalue()) <= 4 * 1024 * 1024 or quality < 30:
+                    break
+                quality -= 10
             compressed = buffer.getvalue()
 
+        gc.collect()
+
+        ai = AIEngine()
+        img_b64 = base64.b64encode(compressed).decode("utf-8")
+        
+        # Sauvegarde physique locale du dernier rendu pour l'envoi API binaire
         last_output = UPLOAD_FOLDER / "last_output.jpg"
         with open(str(last_output), "wb") as f:
             f.write(compressed)
             
-        img_b64 = base64.b64encode(compressed).decode("utf-8")
         del compressed
-        gc.collect()
-
-        with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
-            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
-
-        ai = AIEngine()
-        description = ai.describe_dish_from_bytes(dish_raw_b64)
+        description = ai.describe_dish_from_bytes(img_b64)
+        instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
+        
+        # Insertion du bloc de réservation pour le texte affiché sur l'application
+        facebook_with_phone = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}"
         hashtags = ai.generate_hashtags(description)
-        
-        # NETTOYAGE RADICAL DES DOUBLONS DE TELEPHONE AVANT FUSION
-        facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
-        facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
-        
-        # Reconstruction propre de la légende unifiée unique
-        facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
-        
         del ai
         gc.collect()
 
         from history_manager import save_post
-        save_post(composed_path, description, "", facebook_final, "")
+        save_post(composed_path, description, instagram, facebook_with_phone, hashtags)
 
         return jsonify({
             "success": True,
             "description": description,
-            "facebook": facebook_final,
+            "instagram": instagram,
+            "facebook": facebook_with_phone,
+            "hashtags": hashtags,
             "image": f"data:image/jpeg;base64,{img_b64}"
         })
 
@@ -170,39 +170,52 @@ def publish_to_socials():
     if not data:
         return jsonify({"success": False, "error": "Données invalides"}), 400
 
+    share_fb = data.get("facebook", False)
     caption_fb = data.get("caption_fb", "")
 
-    if not META_ACCESS_TOKEN:
+    # Sécurité : Vérification de l'activation du canal
+    if not share_fb:
+        return jsonify({"success": False, "error": "La case Facebook est décochée dans vos réglages ⚙️."}), 400
+
+    # Sécurité : Vérification de la présence du Token d'accès Meta
+    if not META_ACCESS_TOKEN or META_ACCESS_TOKEN == "":
         return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
-    image_path = UPLOAD_FOLDER / "last_output.jpg"
-    if not image_path.exists():
-        return jsonify({"success": False, "error": "Fichier image introuvable. Veuillez recréer le post."}), 400
-
     try:
-        page_url = f"https://graph.facebook.com/v25.0/me/accounts"
-        page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
-        
-        if "error" in page_res:
-            return jsonify({"success": False, "error": "Meta Auth: " + page_res["error"].get("message")}), 500
+        print("[META API] Envoi réel du média vers le fil Facebook...")
+        image_path = UPLOAD_FOLDER / "last_output.jpg"
+        if not image_path.exists():
+            return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
 
-        page_id = page_res["data"][0].get("id") if "data" in page_res and len(page_res["data"]) > 0 else "me"
-        
-        fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
-        payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
+        # Sécurité texte : Injecte le numéro si l'utilisateur l'a effacé par mégarde lors de l'édition
+        if PHONE_RESERVATION not in caption_fb:
+            caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
+
+        # Requête binaire directe à l'API Graph Meta
+        url = f"https://graph.facebook.com/v25.0/me/photos"
+        payload = {
+            'message': caption_fb,
+            'access_token': META_ACCESS_TOKEN
+        }
         
         with open(str(image_path), 'rb') as img_file:
-            files = {'source': ('post.jpg', img_file, 'image/jpeg')}
-            res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
+            files = {
+                'source': ('post.jpg', img_file, 'image/jpeg')
+            }
+            response = requests.post(url, data=payload, files=files)
+            res_data = response.json()
 
-        if "error" in res_fb:
-            return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
+        if "error" in res_data:
+            return jsonify({"success": False, "error": res_data["error"].get("message", "Erreur Meta API")}), 400
             
-        return jsonify({"success": True, "message": "Plat publié avec succès !"})
+        print(f"[META API] Publication en ligne réussie ! ID Post : {res_data.get('id')}")
+        return jsonify({"success": True, "fb_post_id": res_data.get('id')})
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# Synchronisation directe des images décors en Base64 sans modules tiers
 @app.route("/get_decors")
 def get_decors():
     decors_b64 = {}
@@ -228,13 +241,13 @@ def save_decor_route(decor_name):
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
         
-    resize_and_convert_to_jpg(raw_path, jpg_path)
+    convert_to_jpg(raw_path, jpg_path)
     return sync_decors_response()
 
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    p = UPLOAD_FOLDER / f"decor_{name}.jpg"
+    p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
     return sync_decors_response()
@@ -251,52 +264,6 @@ def sync_decors_response():
             decors_b64[name] = ""
     return jsonify({"success": True, "decors": decors_b64})
 
-
-@app.route("/connect_meta_auto")
-def connect_meta_auto():
-    meta_url = (
-        "https://www.facebook.com/v25.0/dialog/oauth"
-        "?client_id=1307525461448166"
-        "&redirect_uri=https://publichef.onrender.com/connect_meta_auto"
-        "&response_type=token"
-        "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
-    )
-    return f'''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Configuration Réseaux PubliChef</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family:sans-serif; text-align:center; padding-top:60px; background-color:#0A0A0F; color:#ffffff; padding-inline:20px;">
-        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#13131A; border: 1px solid rgba(255,255,255,0.08); border-radius:24px;">
-            <h2 style="color:#F5C842; margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; margin-bottom:35px; line-height:1.5;">Cliquez sur le bouton bleu. Votre jeton permanent apparaîtra automatiquement ci-dessous.</p>
-            
-            <a href="{meta_url}" style="display:inline-block; background: linear-gradient(135deg, #0084ff 0%, #0052cc 100%); color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:12px; font-weight:bold; margin-bottom:20px;">🔵 LIER LA PAGE FACEBOOK</a>
-            
-            <div id="token-display" style="display:none; margin-top:30px; padding:20px; background:rgba(255,255,255,0.04); border-radius:12px; border:1px dashed rgba(245,200,66,0.3);">
-                <p style="color:#34C759; font-weight:bold; margin-bottom:10px;">✅ JETON RECONNU AVEC SUCCÈS :</p>
-                <textarea id="token-text" readonly style="width:100%; height:120px; background:#000; color:#FFE08A; border:1px solid #333; border-radius:8px; padding:10px; font-family:monospace; font-size:12px; box-sizing:border-box; resize:none;"></textarea>
-                <p style="font-size:12px; color:#8E8E93; margin-top:10px;">Copiez ce texte et collez-le dans META_ACCESS_TOKEN sur Render.</p>
-            </div>
-        </div>
-
-        <script>
-            const hash = window.location.hash;
-            if (hash) {{
-                const params = new URLSearchParams(hash.replace('#', '?'));
-                const token = params.get('access_token');
-                if (token) {{
-                    document.getElementById('token-display').style.display = 'block';
-                    document.getElementById('token-text').value = token;
-                }}
-            }}
-        </script>
-    </body>
-    </html>
-    '''
 
 if __name__ == "__main__":
     app.run(debug=False, port=5000, host="0.0.0.0")
