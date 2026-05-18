@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Pro — Retour Version Stable Origine)
+app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
 """
 
 import os
@@ -9,10 +9,11 @@ import shutil
 import traceback
 import gc
 import requests
+import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from PIL import Image, ImageEnhance, ImageOps
+from PIL import Image
 
 load_dotenv()
 
@@ -26,50 +27,17 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 # Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
 
-def resize_and_convert_to_jpg(src, dst, max_size=(900, 900)):
-    """Allège l'image dès sa réception pour éviter l'explosion de la RAM sur Render."""
+def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
+    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
+            # Redimensionnement HD proportionnel de haute qualité (LANCZOS)
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
-            im.save(str(dst), "JPEG", quality=85)
+            im.save(str(dst), "JPEG", quality=92)
     except Exception:
         shutil.copy(str(src), str(dst))
-
-class AdvancedFoodEnhancer:
-    """Moteur Culinaire Actif pour sublimer la photo de plat avant intégration."""
-    
-    @staticmethod
-    def enhance_culinary(image_input, image_output):
-        try:
-            with Image.open(str(image_input)) as im:
-                if im.mode != "RGB":
-                    im = im.convert("RGB")
-                
-                # --- Étape 1 : Saturation Culinaire ---
-                enhancer_sat = ImageEnhance.Color(im)
-                im = enhancer_sat.enhance = im
-                
-                # --- Étape 2 : Relief & Contraste ---
-                enhancer_con = ImageEnhance.Contrast(im)
-                im = enhancer_con.enhance(1.2)
-                
-                # --- Étape 3 : Brillance ---
-                im = ImageOps.autocontrast(im, cutoff=0.5)
-                enhancer_bri = ImageEnhance.Brightness(im)
-                im = enhancer_bri.enhance(1.1)
-                
-                # --- Étape 4 : Netteté ---
-                enhancer_sha = ImageEnhance.Sharpness(im)
-                im = enhancer_sha.enhance(1.3)
-                
-                im.save(str(image_output), "JPEG", quality=90)
-                return True
-        except Exception as e:
-            print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
-            shutil.copy(str(image_input), str(image_output))
-            return False
 
 
 @app.route("/")
@@ -109,7 +77,6 @@ def generate_v2():
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
-    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
     dish_file.stream.seek(0)
@@ -117,7 +84,8 @@ def generate_v2():
         f.write(dish_file.stream.read())
     resize_and_convert_to_jpg(dish_raw, dish_jpg)
 
-    AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
+    # RESTAURATION DU RENDU : Le filtre automatique agressif AdvancedFoodEnhancer a été
+    # désactivé ici pour envoyer la photo HD brute et naturelle de ton iPhone à Gemini.
 
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if "environment" in request.files and request.files["environment"].filename != '':
@@ -138,15 +106,21 @@ def generate_v2():
 
         gc.collect()
         gemini = GeminiEngine()
-        composed_path = gemini.compose_dish_in_environment(dish_enhanced_jpg, env_jpg)
+        # Fusion basée sur l'image HD propre
+        composed_path = gemini.compose_dish_in_environment(dish_jpg, env_jpg)
         del gemini
         gc.collect()
 
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
+            
+            # STABILISATION DU FORMAT : Redimensionnement HD accepté par Facebook et Instagram
+            img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
+            
             buffer = io.BytesIO()
-            img.save(buffer, format="JPEG", quality=85)
+            # Qualité fixée à 92 : Rendu net sans le surpoids qui causait le rejet des données
+            img.save(buffer, format="JPEG", quality=92)
             compressed = buffer.getvalue()
 
         last_output = UPLOAD_FOLDER / "last_output.jpg"
@@ -208,6 +182,10 @@ def publish_to_socials():
     try:
         page_url = f"https://graph.facebook.com/v25.0/me/accounts"
         page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
+        
+        if "error" in page_res:
+            return jsonify({"success": False, "error": "Meta Auth: " + page_res["error"].get("message")}), 500
+
         page_id = page_res["data"][0].get("id") if "data" in page_res and len(page_res["data"]) > 0 else "me"
         
         fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
@@ -256,8 +234,7 @@ def save_decor_route(decor_name):
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    # LA SEULE CORRECTION APPLIQUÉE : name remplacé par la variable decor_name reçue par la route
-    p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+    p = UPLOAD_FOLDER / f"decor_{name}.jpg"
     if p.exists():
         p.unlink()
     return sync_decors_response()
@@ -287,13 +264,36 @@ def connect_meta_auto():
     return f'''
     <!DOCTYPE html>
     <html>
-    <head><title>Configuration Réseaux PubliChef</title><meta charset="utf-8"></head>
-    <body style="font-family:sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
-        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px;">
-            <h2>🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration pour le cross-posting. Liez votre page Facebook.</p>
-            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
+    <head>
+        <title>Configuration Réseaux PubliChef</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family:sans-serif; text-align:center; padding-top:60px; background-color:#0A0A0F; color:#ffffff; padding-inline:20px;">
+        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#13131A; border: 1px solid rgba(255,255,255,0.08); border-radius:24px;">
+            <h2 style="color:#F5C842; margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
+            <p style="color:#aaa; font-size:14px; margin-bottom:35px; line-height:1.5;">Cliquez sur le bouton bleu. Votre jeton permanent apparaîtra automatiquement ci-dessous.</p>
+            
+            <a href="{meta_url}" style="display:inline-block; background: linear-gradient(135deg, #0084ff 0%, #0052cc 100%); color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:12px; font-weight:bold; margin-bottom:20px;">🔵 LIER LA PAGE FACEBOOK</a>
+            
+            <div id="token-display" style="display:none; margin-top:30px; padding:20px; background:rgba(255,255,255,0.04); border-radius:12px; border:1px dashed rgba(245,200,66,0.3);">
+                <p style="color:#34C759; font-weight:bold; margin-bottom:10px;">✅ JETON RECONNU AVEC SUCCÈS :</p>
+                <textarea id="token-text" readonly style="width:100%; height:120px; background:#000; color:#FFE08A; border:1px solid #333; border-radius:8px; padding:10px; font-family:monospace; font-size:12px; box-sizing:border-box; resize:none;"></textarea>
+                <p style="font-size:12px; color:#8E8E93; margin-top:10px;">Copiez ce texte et collez-le dans META_ACCESS_TOKEN sur Render.</p>
+            </div>
         </div>
+
+        <script>
+            const hash = window.location.hash;
+            if (hash) {{
+                const params = new URLSearchParams(hash.replace('#', '?'));
+                const token = params.get('access_token');
+                if (token) {{
+                    document.getElementById('token-display').style.display = 'block';
+                    document.getElementById('token-text').value = token;
+                }}
+            }}
+        </script>
     </body>
     </html>
     '''
