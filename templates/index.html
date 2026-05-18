@@ -58,9 +58,16 @@
         .loading-ring { width:72px; height:72px; border:3.5px solid rgba(245,200,66,0.1); border-top-color:var(--gold); border-radius:50%; animation:spin 0.9s linear infinite; margin:0 auto 28px; }
         @keyframes spin { to{transform:rotate(360deg)} }
         .loading-title { font-family:'Playfair Display',serif; font-size:24px; font-weight:700; margin-bottom:12px; text-align:center; }
-        .loading-desc { color:var(--gold); font-size:15px; margin-bottom:28px; font-weight:600; min-height:22px; text-align:center; }
-        .progress-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.04); border-radius:100px; overflow:hidden; }
-        .progress-bar { width:0%; height:100%; background:linear-gradient(90deg,var(--gold) 0%,#34C759 100%); border-radius:100px; transition:width 0.4s cubic-bezier(0.4,0,0.2,1); }
+        .loading-desc { color:var(--gold); font-size:15px; margin-bottom:24px; font-weight:600; min-height:22px; text-align:center; }
+        .progress-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.04); border-radius:100px; overflow:hidden; margin-bottom:28px; }
+        .progress-bar { width:0%; height:100%; background:linear-gradient(90deg,var(--gold) 0%,#34C759 100%); border-radius:100px; transition:width 0.3s ease-out; }
+        
+        /* STYLE DES LIGNES ETAPES */
+        .loading-step-line { display:flex; align-items:center; gap:12px; font-size:14px; color:var(--gray); margin-bottom:12px; transition:all 0.3s ease; text-align:left; padding-left:10px; }
+        .loading-step-line.active { color:var(--gold); font-weight:600; }
+        .loading-step-line.done { color:var(--success); }
+        .step-check-icon { font-size:15px; width:20px; display:inline-block; text-align:center; }
+
         .result-image { width:100%; border-radius:24px; margin-bottom:24px; aspect-ratio:4/5; object-fit:cover; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
         .result-image-container { position:relative; margin-bottom:16px; }
         .download-btn { position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.2); color:white; padding:10px 16px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; }
@@ -178,9 +185,25 @@
         <div class="loading-container">
             <div class="loading-ring"></div>
             <div class="loading-title">Sublimation Active...</div>
-            <div class="loading-desc" id="loadingPhaseText">Étape 1 : Amélioration des textures culinaires...</div>
+            <div class="loading-desc" id="loadingPhaseText">Analyse initiale du plat...</div>
+            
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div id="loadingStepsBlock" style="border-top:1px solid var(--border); padding-top:20px;">
+                <div class="loading-step-line" id="stepLine1">
+                    <span class="step-check-icon" id="stepIcon1">⏳</span>
+                    <span>Sublimation des couleurs du plat</span>
+                </div>
+                <div class="loading-step-line" id="stepLine2">
+                    <span class="step-check-icon" id="stepIcon2">⏳</span>
+                    <span>Incrustation IA dans le décor</span>
+                </div>
+                <div class="loading-step-line" id="stepLine3">
+                    <span class="step-check-icon" id="stepIcon3">⏳</span>
+                    <span>Rédaction de la légende Facebook</span>
+                </div>
             </div>
         </div>
     </div>
@@ -310,6 +333,13 @@
         document.getElementById('btnGenerate').disabled = !dishFile;
     }
 
+    function resetStepLines() {
+        ['1','2','3'].forEach(id => {
+            document.getElementById('stepLine' + id).className = 'loading-step-line';
+            document.getElementById('stepIcon' + id).innerText = '⏳';
+        });
+    }
+
     async function startGeneration() {
         if (isGenerating) { showScreen('loading'); setActiveNav(-1); return; }
         document.getElementById('errorBlock').style.display = 'none';
@@ -323,14 +353,41 @@
         showScreen('loading');
         setActiveNav(-1);
 
+        resetStepLines();
+
         const pb = document.getElementById('progressBar');
         const phaseText = document.getElementById('loadingPhaseText');
         let progress = 0;
         pb.style.width = '0%';
+        
+        // Initialisation Étape 1
+        document.getElementById('stepLine1').className = 'loading-step-line active';
+        document.getElementById('stepIcon1').innerText = '✨';
+        phaseText.innerText = "Amélioration des textures...";
 
         const pInterval = setInterval(() => {
-            if (progress < 35) { progress += 2; pb.style.width = progress + '%'; }
-        }, 150);
+            if (progress < 92) {
+                progress += 1.5;
+                pb.style.width = progress + '%';
+
+                // Passage Étape 2 (Incrustation décor)
+                if (progress >= 35 && progress < 70 && !document.getElementById('stepLine1').classList.contains('done')) {
+                    document.getElementById('stepLine1').className = 'loading-step-line done';
+                    document.getElementById('stepIcon1').innerText = '✅';
+                    document.getElementById('stepLine2').className = 'loading-step-line active';
+                    document.getElementById('stepIcon2').innerText = '✨';
+                    phaseText.innerText = "Fusion du plat dans le décor...";
+                }
+                // Passage Étape 3 (Rédaction Gemini)
+                else if (progress >= 70 && !document.getElementById('stepLine2').classList.contains('done')) {
+                    document.getElementById('stepLine2').className = 'loading-step-line done';
+                    document.getElementById('stepIcon2').innerText = '✅';
+                    document.getElementById('stepLine3').className = 'loading-step-line active';
+                    document.getElementById('stepIcon3').innerText = '✨';
+                    phaseText.innerText = "Rédaction de l'accroche culinaire...";
+                }
+            }
+        }, 120);
 
         const formData = new FormData();
         formData.append('dish', dishFile);
@@ -348,7 +405,10 @@
                 throw new Error(data.error || "Erreur de génération interne.");
             }
 
+            // Tout est validé avec succès
             pb.style.width = '100%';
+            document.getElementById('stepLine3').className = 'loading-step-line done';
+            document.getElementById('stepIcon3').innerText = '✅';
             phaseText.innerText = "Post finalisé !";
 
             setTimeout(() => {
@@ -359,7 +419,7 @@
                 document.getElementById('dot3').className = "step-dot done";
                 showScreen('result');
                 setActiveNav(-1);
-            }, 500);
+            }, 400);
 
         } catch(e) {
             clearInterval(pInterval);
@@ -368,7 +428,6 @@
             showScreen('capture');
             setActiveNav(0);
             
-            // PIÈGE À CACHE : Injection directe de la vraie erreur Python
             const errBlock = document.getElementById('errorBlock');
             errBlock.innerText = "⚠️ " + e.message;
             errBlock.style.display = 'block';
