@@ -1,162 +1,53 @@
-"""
-ai_engine.py — Moteur IA : vision + génération de textes
-"""
-
 import os
-import base64
-import anthropic
-from pathlib import Path
-
-
-SYSTEM_PROMPT = """Tu es le rédacteur social media du restaurant Athelia, à La Ciotat (Var).
-Tu écris comme un restaurateur passionné : chaleureux, "vieille école" dans les valeurs
-mais moderne dans la forme. Tu mets en avant :
-- Les produits frais et locaux (Provence, Var, PACA)
-- L'ambiance conviviale et familiale
-- Le savoir-faire artisanal et le fait maison
-- La générosité et le plaisir de la table
-
-Ton style : phrases courtes, visuelles, appétissantes. Pas de jargon marketing.
-Toujours en français."""
-
+import google.generativeai as genai
 
 class AIEngine:
     def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise EnvironmentError("ANTHROPIC_API_KEY manquante dans le fichier .env")
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = "claude-opus-4-5"
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        # Double rideau : Modèle principal lourd vs Modèle Flash ultra-rapide anti-surcharge
+        self.primary_model = "gemini-1.5-pro"
+        self.backup_model = "gemini-2.5-flash"
 
-    def describe_dish(self, image_path: Path) -> str:
-        image_data = self._encode_image(image_path)
-        media_type = self._get_media_type(image_path)
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=500,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": image_data,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": "Décris ce plat avec précision : ingrédients visibles, couleurs, présentation, texture apparente. Sois factuel et appétissant. 3-4 phrases maximum.",
-                        },
-                    ],
-                }
-            ],
+    def _call_with_fallback(self, prompt, contents_meta=None):
+        """Logique générique de bascule automatique si le modèle principal rame ou sature."""
+        payload = [prompt]
+        if contents_meta:
+            payload.insert(0, contents_meta)
+
+        try:
+            model = genai.GenerativeModel(model_name=self.primary_model)
+            # Timeout serré à 10s pour ne pas faire attendre l'iPhone
+            response = model.generate_content(payload, request_options={"timeout": 10})
+            return response.text
+        except Exception as e:
+            print(f"[WARN AI_ENGINE] Principal ({self.primary_model}) indisponible : {str(e)}. Bascule immédiate.")
+            model_backup = genai.GenerativeModel(model_name=self.backup_model)
+            response_backup = model_backup.generate_content(payload, request_options={"timeout": 10})
+            return response_backup.text
+
+    def describe_dish_from_bytes(self, img_b64):
+        import base64
+        image_data = base64.b64decode(img_b64)
+        contents_meta = {"mime_type": "image/jpeg", "data": image_data}
+        
+        prompt = (
+            "Analyse cette photo de plat. Donne une description culinaire ultra-précise, "
+            "gastronomique et vendeuse du plat (ingrédients, textures, cuisson)."
         )
-        return message.content[0].text
+        return self._call_with_fallback(prompt, contents_meta)
 
-    def describe_dish_from_bytes(self, image_b64: str) -> str:
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=500,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
-                                "data": image_b64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": "Décris ce plat avec précision : ingrédients visibles, couleurs, présentation, texture apparente. Sois factuel et appétissant. 3-4 phrases maximum.",
-                        },
-                    ],
-                }
-            ],
+    def generate_facebook_caption(self, description):
+        prompt = (
+            f"En utilisant cette description du plat : '{description}', rédige une légende captivante "
+            f"pour Facebook et Instagram. Le ton doit être chaleureux, pro, axé cuisine maison et produits frais. "
+            f"Ajoute des émojis locaux et une invitation claire à réserver. Ne mets pas le numéro de téléphone ici."
         )
-        return message.content[0].text
+        return self._call_with_fallback(prompt)
 
-    def generate_instagram_caption(self, dish_description: str) -> str:
-        prompt = f"""Voici la description d'un plat servi chez Athelia :
-"{dish_description}"
-
-Rédige une légende Instagram en français :
-- 3 à 5 lignes maximum, rythmée et visuelle
-- Commence par une phrase qui donne faim ou crée de l'émotion
-- Mentionne @athelia_resto une fois naturellement
-- Ton chaleureux et passionné, pas marketing
-- Termine par une invitation à venir
-- NE PAS inclure les hashtags"""
-
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=300,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+    def generate_hashtags(self, description):
+        prompt = (
+            f"Génère une ligne de 8 hashtags pertinents et optimisés pour les réseaux sociaux, "
+            f"séparés par des espaces, basés sur ce plat : '{description}'. "
+            f"Inclus obligatoirement #LaCiotat et des tags culinaires pros."
         )
-        return message.content[0].text.strip()
-
-    def generate_facebook_caption(self, dish_description: str) -> str:
-        prompt = f"""Voici la description d'un plat servi chez Athelia :
-"{dish_description}"
-
-Rédige une publication Facebook en français :
-- 5 à 8 lignes, plus développée qu'Instagram
-- Raconte l'histoire du plat : origine des produits, technique, saison
-- Mentionne les produits locaux (Provence, Var) si pertinent
-- Ton convivial et authentique
-- Inclure une question pour encourager les commentaires
-- Terminer avec : "Réservations : [TELEPHONE]" et "📍 La Ciotat"
-- NE PAS inclure les hashtags"""
-
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=500,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text.strip()
-
-    def generate_hashtags(self, dish_description: str) -> str:
-        prompt = f"""Plat décrit : "{dish_description}"
-
-Génère exactement 10 hashtags Instagram pour ce plat.
-Mélange obligatoire :
-- 2-3 tags locaux : #Var #PACA #LaCiotat #LeBeausset #Provence
-- 2-3 tags thématiques cuisine : #faitmaison #cuisinefrancaise etc.
-- 2-3 tags restaurant : #restaurant #gastronomie #bonneadresse etc.
-- 1-2 tags spécifiques au plat
-
-Format : sur une seule ligne, séparés par des espaces.
-Uniquement les hashtags, rien d'autre."""
-
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=150,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text.strip()
-
-    def _encode_image(self, image_path: Path) -> str:
-        with open(image_path, "rb") as f:
-            return base64.standard_b64encode(f.read()).decode("utf-8")
-
-    def _get_media_type(self, image_path: Path) -> str:
-        ext = image_path.suffix.lower()
-        types = {
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        return types.get(ext, "image/jpeg")
+        return self._call_with_fallback(prompt)
