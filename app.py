@@ -36,18 +36,16 @@ def index():
 def upload_decor_secours():
     if request.method == "POST":
         if "decor_file" not in request.files:
-            return "<h3>Erreur : Aucun fichier détecté dans la requête.</h3>", 400
+            return "<h3>Erreur : Aucun fichier détecté.</h3>", 400
         file = request.files["decor_file"]
         decor_name = request.form.get("decor_name", "salle")
         if file.filename == "":
-            return "<h3>Erreur : Le fichier sélectionné est vide.</h3>", 400
-            
+            return "<h3>Erreur : Fichier vide.</h3>", 400
         raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
         jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-        
         file.save(str(raw_path))
         resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
-        return f"<h3>Succes ! Le decor '{decor_name}' a ete enregistre de force sur Render.</h3><a href='/'>Retour a l'accueil</a>"
+        return f"<h3>Succes ! Le decor '{decor_name}' a ete enregistre.</h3><a href='/'>Retour a l'accueil</a>"
 
     return '''
     <!DOCTYPE html>
@@ -56,13 +54,11 @@ def upload_decor_secours():
     <body style="font-family:sans-serif; background:#121212; color:#fff; padding:50px; text-align:center;">
         <div style="max-width:500px; margin:0 auto; background:#1e1e1e; padding:30px; border-radius:10px; border:1px solid #333;">
             <h2>🛠️ Passerelle de Secours Décors</h2>
-            <form action="/upload_decor_secours" method="post" enctype="multipart/form-data" style="margin-top:30px;">
-                <label>1. Emplacement cible :</label><br>
+            <form action="/upload_decor_secours" method="post" enctype="multipart/form-data">
                 <select name="decor_name" style="padding:10px; width:100%; margin:10px 0; background:#222; color:#fff; border:1px solid #444;">
                     <option value="salle">Salle</option>
                     <option value="terrasse">Terrasse</option>
                 </select><br><br>
-                <label>2. Fichier JPEG sur le Mac :</label><br>
                 <input type="file" name="decor_file" accept="image/*" style="margin:20px 0;"><br><br>
                 <input type="submit" value="FORCER L'INSTALLATION" style="background:#d4af37; color:#000; padding:12px 25px; border:none; font-weight:bold; cursor:pointer; width:100%;">
             </form>
@@ -89,10 +85,8 @@ def save_decor_route(decor_name):
     for key in request.files.keys():
         file_key = key
         break
-    if not file_key and "image" in request.files:
-        file_key = "image"
-    if not file_key:
-        return jsonify({"error": "Fichier manquant"}), 400
+    if not file_key and "image" in request.files: file_key = "image"
+    if not file_key: return jsonify({"error": "Fichier manquant"}), 400
     try:
         file = request.files[file_key]
         raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
@@ -107,13 +101,19 @@ def save_decor_route(decor_name):
 
 @app.route("/generate_v2", methods=["POST"])
 def generate_v2():
-    target_file_key = "dish_image" if "dish_image" in request.files else "dish"
-    target_decor_key = "decor_type" if "decor_type" in request.form else "decor"
+    # ACCEPTATION TOTALE : On prend la première clé de fichier disponible, peu importe son nom
+    target_file_key = None
+    for key in request.files.keys():
+        target_file_key = key
+        break
 
-    if target_file_key not in request.files:
-        return jsonify({"error": "La photo du plat est requise"}), 400
+    if not target_file_key:
+        return jsonify({"error": "La photo du plat est introuvable ou n'est pas lue par le serveur."}), 400
 
     dish_file = request.files[target_file_key]
+    
+    # Pareil pour le choix du décor (salle/terrasse)
+    target_decor_key = "decor_type" if "decor_type" in request.form else "decor"
     decor_name = request.form.get(target_decor_key, "salle")
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
@@ -153,7 +153,7 @@ def generate_v2():
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Recommence via la page de secours."}), 400
 
     try:
         from gemini_engine import GeminiEngine
