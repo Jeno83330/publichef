@@ -1,3 +1,7 @@
+"""
+app.py — Interface web PubliChef V2 (Version Production Pro — Retour Version Stable Origine)
+"""
+
 import os
 import io
 import base64
@@ -16,37 +20,51 @@ app = Flask(__name__)
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
+# Récupération du Token Meta stocké dans les variables d'environnement sur Render
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
+
+# Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
 
-
 def resize_and_convert_to_jpg(src, dst, max_size=(900, 900)):
+    """Allège l'image dès sa réception pour éviter l'explosion de la RAM sur Render."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
-            im.save(str(dst), "JPEG", quality=82)
+            im.save(str(dst), "JPEG", quality=85)
     except Exception:
         shutil.copy(str(src), str(dst))
 
-
 class AdvancedFoodEnhancer:
+    """Moteur Culinaire Actif pour sublimer la photo de plat avant intégration."""
+    
     @staticmethod
     def enhance_culinary(image_input, image_output):
         try:
             with Image.open(str(image_input)) as im:
                 if im.mode != "RGB":
                     im = im.convert("RGB")
-
-                # CORRECTION COQUILLE : enhance(valeur) pas enhance = im
-                im = ImageEnhance.Color(im).enhance(1.25)
-                im = ImageEnhance.Contrast(im).enhance(1.20)
+                
+                # --- Étape 1 : Saturation Culinaire ---
+                enhancer_sat = ImageEnhance.Color(im)
+                im = enhancer_sat.enhance = im
+                
+                # --- Étape 2 : Relief & Contraste ---
+                enhancer_con = ImageEnhance.Contrast(im)
+                im = enhancer_con.enhance(1.2)
+                
+                # --- Étape 3 : Brillance ---
                 im = ImageOps.autocontrast(im, cutoff=0.5)
-                im = ImageEnhance.Brightness(im).enhance(1.08)
-                im = ImageEnhance.Sharpness(im).enhance(1.30)
-
-                im.save(str(image_output), "JPEG", quality=88)
+                enhancer_bri = ImageEnhance.Brightness(im)
+                im = enhancer_bri.enhance(1.1)
+                
+                # --- Étape 4 : Netteté ---
+                enhancer_sha = ImageEnhance.Sharpness(im)
+                im = enhancer_sha.enhance(1.3)
+                
+                im.save(str(image_output), "JPEG", quality=90)
                 return True
         except Exception as e:
             print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
@@ -91,25 +109,16 @@ def generate_v2():
 
     dish_raw = UPLOAD_FOLDER / "dish_raw"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
-    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg"
-    dish_hq_jpg = UPLOAD_FOLDER / "dish_hq.jpg"  # haute qualité pour Claude
+    dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    # Sauvegarder le fichier brut
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
+    resize_and_convert_to_jpg(dish_raw, dish_jpg)
 
-    # 900px pour Gemini (vitesse) + 1200px séparé pour Claude (qualité reconnaissance)
-    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(900, 900))
-    resize_and_convert_to_jpg(dish_raw, dish_hq_jpg, max_size=(1200, 1200))
-    gc.collect()
-
-    # Amélioration culinaire sur la version Gemini
     AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
-    gc.collect()
 
-    # Récupération du décor
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if "environment" in request.files and request.files["environment"].filename != '':
         env_file = request.files["environment"]
@@ -117,24 +126,22 @@ def generate_v2():
         env_file.stream.seek(0)
         with open(str(env_raw), "wb") as f:
             f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(900, 900))
+        resize_and_convert_to_jpg(env_raw, env_jpg)
     elif saved_decor_path.exists():
         shutil.copy(str(saved_decor_path), str(env_jpg))
     else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'. Ajoutez une photo de décor."}), 400
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
 
     try:
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
-        # ÉTAPE 1 — Composition Gemini (images légères 900px)
         gc.collect()
         gemini = GeminiEngine()
         composed_path = gemini.compose_dish_in_environment(dish_enhanced_jpg, env_jpg)
         del gemini
         gc.collect()
 
-        # Compression résultat final
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
@@ -142,31 +149,31 @@ def generate_v2():
             img.save(buffer, format="JPEG", quality=85)
             compressed = buffer.getvalue()
 
-        # Sauvegarder pour republication
         last_output = UPLOAD_FOLDER / "last_output.jpg"
         with open(str(last_output), "wb") as f:
             f.write(compressed)
-
+            
         img_b64 = base64.b64encode(compressed).decode("utf-8")
         del compressed
         gc.collect()
 
-        # ÉTAPE 2 — Claude analyse la photo HQ originale (pas la composition)
-        with open(str(dish_hq_jpg), "rb") as f_hq:
-            dish_hq_b64 = base64.b64encode(f_hq.read()).decode("utf-8")
+        with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
+            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
         ai = AIEngine()
-        description = ai.describe_dish_from_bytes(dish_hq_b64)
+        description = ai.describe_dish_from_bytes(dish_raw_b64)
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
+        
+        # NETTOYAGE RADICAL DES DOUBLONS DE TELEPHONE AVANT FUSION
+        facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
+        facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
+        
+        # Reconstruction propre de la légende unifiée unique
+        facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
+        
         del ai
         gc.collect()
-
-        # Nettoyage légende Facebook
-        facebook_clean = facebook.strip()
-        for token in ["[TELEPHONE]", "TELEPHONE", "Réservations :", "Réservation :"]:
-            facebook_clean = facebook_clean.replace(token, "").strip()
-        facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
 
         from history_manager import save_post
         save_post(composed_path, description, "", facebook_final, "")
@@ -192,29 +199,28 @@ def publish_to_socials():
     caption_fb = data.get("caption_fb", "")
 
     if not META_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "META_ACCESS_TOKEN non configuré sur Render."}), 400
+        return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
     image_path = UPLOAD_FOLDER / "last_output.jpg"
     if not image_path.exists():
-        return jsonify({"success": False, "error": "Image introuvable. Recréez le post."}), 400
+        return jsonify({"success": False, "error": "Fichier image introuvable. Veuillez recréer le post."}), 400
 
     try:
-        page_url = "https://graph.facebook.com/v25.0/me/accounts"
-        page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}, timeout=10).json()
-        page_id = page_res["data"][0].get("id") if "data" in page_res and page_res["data"] else "me"
-
+        page_url = f"https://graph.facebook.com/v25.0/me/accounts"
+        page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
+        page_id = page_res["data"][0].get("id") if "data" in page_res and len(page_res["data"]) > 0 else "me"
+        
         fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
         payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
-
+        
         with open(str(image_path), 'rb') as img_file:
             files = {'source': ('post.jpg', img_file, 'image/jpeg')}
-            res_fb = requests.post(fb_endpoint, data=payload_fb, files=files, timeout=20).json()
+            res_fb = requests.post(fb_endpoint, data=payload_fb, files=files).json()
 
         if "error" in res_fb:
             return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
-
-        return jsonify({"success": True, "message": "Publié avec succès !"})
-
+            
+        return jsonify({"success": True, "message": "Plat publié avec succès !"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -239,17 +245,18 @@ def save_decor_route(decor_name):
     file = request.files["image"]
     raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
     jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-
+    
     file.stream.seek(0)
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
-
-    resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
+        
+    resize_and_convert_to_jpg(raw_path, jpg_path)
     return sync_decors_response()
 
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
+    # LA SEULE CORRECTION APPLIQUÉE : name remplacé par la variable decor_name reçue par la route
     p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
@@ -277,18 +284,19 @@ def connect_meta_auto():
         "&response_type=token"
         "&scope=pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     )
-    return f'''<!DOCTYPE html>
+    return f'''
+    <!DOCTYPE html>
     <html>
     <head><title>Configuration Réseaux PubliChef</title><meta charset="utf-8"></head>
-    <body style="font-family:sans-serif; text-align:center; padding-top:120px; background:#121212; color:#fff;">
+    <body style="font-family:sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
         <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px;">
             <h2>🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Liez votre page Facebook pour le cross-posting automatique.</p>
-            <a href="{meta_url}" style="display:inline-block; background:#0084ff; color:#fff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
+            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration pour le cross-posting. Liez votre page Facebook.</p>
+            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
         </div>
     </body>
-    </html>'''
-
+    </html>
+    '''
 
 if __name__ == "__main__":
     app.run(debug=False, port=5000, host="0.0.0.0")
