@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PubliChef — Assistant Culinaire Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght=0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #0A0A0F; --card: #13131A; --border: rgba(255,255,255,0.08);
@@ -49,8 +49,7 @@
         .decor-option .decor-icon { font-size:32px; margin-bottom:8px; }
         .decor-option .decor-name { font-size:14px; font-weight:600; }
         .decor-option.locked { opacity:0.35; cursor:not-allowed; }
-        .decor-label-click { display:block; width:100%; height:100%; cursor:pointer; position:absolute; inset:0; z-index:5; padding-top:20px; }
-        .decor-modify-btn { background:rgba(245,200,66,0.12); border:1px solid rgba(245,200,66,0.3); color:var(--gold); padding:5px 12px; border-radius:10px; font-size:11px; font-weight:600; pointer-events:none; margin-top:8px; width:90%; }
+        .decor-modify-btn { background:rgba(245,200,66,0.12); border:1px solid rgba(245,200,66,0.3); color:var(--gold); padding:5px 12px; border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; margin-top:8px; width:90%; position:relative; z-index:15; }
         .btn-primary { background:var(--gold-gradient); color:#000; border:none; padding:18px; border-radius:18px; font-size:16px; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 16px rgba(245,200,66,0.15); margin-top:auto; }
         .btn-primary:disabled { opacity:0.35; cursor:not-allowed; box-shadow:none; }
         .btn-secondary { background:transparent; color:var(--gray-light); border:1px solid var(--border); padding:16px; border-radius:18px; font-size:15px; font-weight:600; cursor:pointer; width:100%; margin-top:12px; }
@@ -98,10 +97,12 @@
 
 <div class="main-content">
 
+    <!-- SCREEN CAPTURE -->
     <div class="screen active" id="screen-capture">
         <div class="screen-title">Créez votre post</div>
         <div class="screen-subtitle">Photographiez votre plat et choisissez votre décor.</div>
 
+        <!-- Photo du plat -->
         <div class="upload-card" id="dishCard">
             <input type="file" id="dishInput" accept="image/*">
             <img class="upload-preview" id="dishPreview" src="" alt="">
@@ -113,38 +114,34 @@
             <span class="upload-badge">Étape 1</span>
         </div>
 
+        <!-- Décors permanents -->
         <div class="decor-section">
             <div class="section-label">Sélection du décor permanent</div>
             <div class="decor-grid" id="decorGrid">
-                
-                <div class="decor-option selected" data-decor="salle" id="opt-salle" onclick="setActiveDecorTarget('salle')">
-                    <label for="input-decor-salle" class="decor-label-click">
-                        <div id="decor-preview-salle" style="display:none;width:100%;padding:0 10px;">
-                            <img id="decor-img-salle" src="" alt="" style="width:100%;height:65px;object-fit:cover;border-radius:10px;margin-bottom:4px;">
-                            <div style="font-size:12px;font-weight:700;">Salle</div>
-                        </div>
-                        <div id="decor-placeholder-salle">
-                            <span class="decor-icon">🏛️</span>
-                            <div class="decor-name">Salle</div>
-                            <div class="decor-modify-btn">Ajouter</div>
-                        </div>
-                    </label>
+                <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
+                    <div id="decor-preview-salle" style="display:none;width:100%;">
+                        <img id="decor-img-salle" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
+                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Salle du restaurant</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier</button>
+                    </div>
+                    <div id="decor-placeholder-salle">
+                        <span class="decor-icon">🏛️</span>
+                        <div class="decor-name">Salle du restaurant</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter</button>
+                    </div>
                 </div>
-
-                <div class="decor-option" data-decor="terrasse" id="opt-terrasse" onclick="setActiveDecorTarget('terrasse')">
-                    <label for="input-decor-terrasse" class="decor-label-click">
-                        <div id="decor-preview-terrasse" style="display:none;width:100%;padding:0 10px;">
-                            <img id="decor-img-terrasse" src="" alt="" style="width:100%;height:65px;object-fit:cover;border-radius:10px;margin-bottom:4px;">
-                            <div style="font-size:12px;font-weight:700;">Terrasse</div>
-                        </div>
-                        <div id="decor-placeholder-terrasse">
-                            <span class="decor-icon">🌿</span>
-                            <div class="decor-name">Terrasse</div>
-                            <div class="decor-modify-btn">Ajouter</div>
-                        </div>
-                    </label>
+                <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
+                    <div id="decor-preview-terrasse" style="display:none;width:100%;">
+                        <img id="decor-img-terrasse" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
+                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Terrasse</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier</button>
+                    </div>
+                    <div id="decor-placeholder-terrasse">
+                        <span class="decor-icon">🌿</span>
+                        <div class="decor-name">Terrasse</div>
+                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter</button>
+                    </div>
                 </div>
-
                 <div class="decor-option locked">
                     <span class="decor-icon">🔒</span>
                     <div class="decor-name" style="color:var(--gray);">Bar / Comptoir</div>
@@ -154,11 +151,10 @@
                     <div class="decor-name" style="color:var(--gray);">Décor personnalisé</div>
                 </div>
             </div>
-            
-            <input type="file" id="input-decor-salle" accept="image/*" style="display:none;" onchange="directUploadDecor('salle')">
-            <input type="file" id="input-decor-terrasse" accept="image/*" style="display:none;" onchange="directUploadDecor('terrasse')">
+            <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
         </div>
 
+        <!-- Décor à la volée -->
         <div class="upload-card" id="envCard" style="margin-bottom:24px;">
             <input type="file" id="envInput" accept="image/*">
             <img class="upload-preview" id="envPreview" src="" alt="">
@@ -174,6 +170,7 @@
         <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>✨ Créer mon post</button>
     </div>
 
+    <!-- SCREEN LOADING -->
     <div class="screen" id="screen-loading">
         <div class="loading-container">
             <div class="loading-ring"></div>
@@ -185,6 +182,7 @@
         </div>
     </div>
 
+    <!-- SCREEN RESULT -->
     <div class="screen" id="screen-result">
         <div class="result-image-container">
             <img class="result-image" id="resultImage" src="" alt="Post finalisé">
@@ -205,6 +203,7 @@
         <button class="btn-secondary" onclick="resetApp()">📸 Faire un nouveau post</button>
     </div>
 
+    <!-- SCREEN HISTORY -->
     <div class="screen" id="screen-history">
         <div class="screen-title" style="margin-bottom:24px;">Historique des créations</div>
         <div id="historyGrid" class="history-grid"></div>
@@ -234,51 +233,42 @@
 
 <script>
     let dishFile = null, envFile = null, isGenerating = false, selectedDecor = 'salle';
-    let currentHistoryPost = null;
+    let savedDecors = {}, modifyingDecor = null, currentHistoryPost = null;
 
     async function loadSavedDecors() {
         try {
             const res = await fetch('/get_decors');
-            const data = await res.json();
-            if (data && data.success && data.decors) {
-                ['salle', 'terrasse'].forEach(n => {
-                    if (data.decors[n] && data.decors[n] !== "") {
-                        document.getElementById('decor-preview-' + n).style.display = 'block';
-                        document.getElementById('decor-placeholder-' + n).style.display = 'none';
-                        document.getElementById('decor-img-' + n).src = data.decors[n];
-                    } else {
-                        document.getElementById('decor-preview-' + n).style.display = 'none';
-                        document.getElementById('decor-placeholder-' + n).style.display = 'block';
-                    }
-                });
-            }
+            savedDecors = await res.json();
+            ['salle', 'terrasse'].forEach(n => {
+                if (savedDecors[n]) {
+                    document.getElementById('decor-preview-' + n).style.display = 'block';
+                    document.getElementById('decor-placeholder-' + n).style.display = 'none';
+                    document.getElementById('decor-img-' + n).src = savedDecors[n];
+                }
+            });
             checkReady();
-        } catch(e) { console.error(e); }
+        } catch(e) {}
     }
 
-    function setActiveDecorTarget(type) {
-        selectedDecor = type;
-        document.querySelectorAll('.decor-option').forEach(d => d.classList.remove('selected'));
-        document.getElementById(`opt-${type}`).classList.add('selected');
-        checkReady();
+    function modifyDecor(event, decorName) {
+        event.stopPropagation();
+        modifyingDecor = decorName;
+        document.getElementById('decorModifyInput').click();
     }
 
-    async function directUploadDecor(type) {
-        const input = document.getElementById(`input-decor-${type}`);
-        if (!input.files[0]) return;
-
+    document.getElementById('decorModifyInput').addEventListener('change', async function() {
+        if (!this.files[0] || !modifyingDecor) return;
         const formData = new FormData();
-        formData.append('image', input.files[0]);
-
+        formData.append('image', this.files[0]);
         try {
-            const res = await fetch('/save_decor/' + type, { method: 'POST', body: formData });
+            const res = await fetch('/save_decor/' + modifyingDecor, { method: 'POST', body: formData });
             const data = await res.json();
-            if (data && data.success) {
-                await loadSavedDecors();
-            }
-        } catch(e) { console.error(e); }
-        input.value = '';
-    }
+            savedDecors = data.decors;
+            loadSavedDecors();
+        } catch(e) {}
+        this.value = '';
+        modifyingDecor = null;
+    });
 
     document.getElementById('dishInput').addEventListener('change', function() {
         if (this.files[0]) {
@@ -306,6 +296,14 @@
         }
     });
 
+    function selectDecor(el) {
+        if (el.classList.contains('locked')) return;
+        document.querySelectorAll('.decor-option').forEach(d => d.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedDecor = el.dataset.decor;
+        checkReady();
+    }
+
     function checkReady() {
         document.getElementById('btnGenerate').disabled = !dishFile;
     }
@@ -328,9 +326,25 @@
         let progress = 0;
         pb.style.width = '0%';
 
+        phaseText.innerText = "Étape 1 : Sublimation et reliefs culinaires...";
         const pInterval = setInterval(() => {
             if (progress < 35) { progress += 2; pb.style.width = progress + '%'; }
         }, 150);
+
+        setTimeout(() => {
+            if (progress < 70) {
+                phaseText.innerText = "Étape 2 : Fusion de l'éclairage et intégration au décor...";
+                const pInterval2 = setInterval(() => {
+                    if (progress < 75) { progress += 1; pb.style.width = progress + '%'; }
+                    else clearInterval(pInterval2);
+                }, 200);
+            }
+        }, 2000);
+
+        setTimeout(() => {
+            phaseText.innerText = "Étape 3 : Rédaction des légendes Meta unifiées...";
+            if (progress < 85) { progress = 85; pb.style.width = '85%'; }
+        }, 5000);
 
         const formData = new FormData();
         formData.append('dish', dishFile);
@@ -351,7 +365,7 @@
 
             setTimeout(() => {
                 document.getElementById('resultImage').src = data.image;
-                document.getElementById('fbText').textContent = data.caption;
+                document.getElementById('fbText').textContent = data.facebook;
                 document.getElementById('dot1').className = "step-dot done";
                 document.getElementById('dot2').className = "step-dot done";
                 document.getElementById('dot3').className = "step-dot done";
