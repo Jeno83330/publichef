@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Finale — Envoi Réel Meta & Décors Unifiés)
+app.py — Interface web PubliChef V2 (Version Production Intégration Directe Meta & Réservation Téléphone)
 """
 
 import os
@@ -20,10 +20,10 @@ app = Flask(__name__)
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
-# Récupération du Token Meta stocké dans les variables d'environnement sur Render
+# Récupération du Token Meta stocké sur Render
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 
-# Coordonnées officielles du restaurant pour insertion automatique
+# Numéro de réservation officiel de L'Athélia
 PHONE_RESERVATION = "04 42 08 65 28"
 
 def convert_to_jpg(src, dst):
@@ -75,13 +75,13 @@ def generate_v2():
     env_jpg = UPLOAD_FOLDER / "env.jpg"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
 
-    # 1. Traitement et conversion de la photo du plat
+    # 1. Enregistrement et conversion du plat
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
     convert_to_jpg(dish_raw, dish_jpg)
 
-    # 2. Gestion unifiée du fond (Décor permanent ou upload direct)
+    # 2. GESTION DU DÉCOR
     saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     
     if "environment" in request.files and request.files["environment"].filename != '':
@@ -131,7 +131,6 @@ def generate_v2():
         ai = AIEngine()
         img_b64 = base64.b64encode(compressed).decode("utf-8")
         
-        # Sauvegarde physique locale du dernier rendu pour l'envoi API binaire
         last_output = UPLOAD_FOLDER / "last_output.jpg"
         with open(str(last_output), "wb") as f:
             f.write(compressed)
@@ -141,8 +140,9 @@ def generate_v2():
         instagram = ai.generate_instagram_caption(description)
         facebook = ai.generate_facebook_caption(description)
         
-        # Insertion du bloc de réservation pour le texte affiché sur l'application
+        # AJOUT DU BLOC DE RÉSERVATION AUTOMATIQUE SUR LE TEXTE FACEBOOK À L'ÉCRAN
         facebook_with_phone = f"{facebook}\n\n📞 Réservation : {PHONE_RESERVATION}"
+        
         hashtags = ai.generate_hashtags(description)
         del ai
         gc.collect()
@@ -173,96 +173,72 @@ def publish_to_socials():
     share_fb = data.get("facebook", False)
     caption_fb = data.get("caption_fb", "")
 
-    # Sécurité : Vérification de l'activation du canal
-    if not share_fb:
-        return jsonify({"success": False, "error": "La case Facebook est décochée dans vos réglages ⚙️."}), 400
-
-    # Sécurité : Vérification de la présence du Token d'accès Meta
     if not META_ACCESS_TOKEN or META_ACCESS_TOKEN == "":
         return jsonify({"success": False, "error": "Le jeton META_ACCESS_TOKEN n'est pas configuré sur Render."}), 400
 
     try:
-        print("[META API] Envoi réel du média vers le fil Facebook...")
-        image_path = UPLOAD_FOLDER / "last_output.jpg"
-        if not image_path.exists():
-            return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
-
-        # Sécurité texte : Injecte le numéro si l'utilisateur l'a effacé par mégarde lors de l'édition
-        if PHONE_RESERVATION not in caption_fb:
-            caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
-
-        # Requête binaire directe à l'API Graph Meta
-        url = f"https://graph.facebook.com/v25.0/me/photos"
-        payload = {
-            'message': caption_fb,
-            'access_token': META_ACCESS_TOKEN
-        }
-        
-        with open(str(image_path), 'rb') as img_file:
-            files = {
-                'source': ('post.jpg', img_file, 'image/jpeg')
-            }
-            response = requests.post(url, data=payload, files=files)
-            res_data = response.json()
-
-        if "error" in res_data:
-            return jsonify({"success": False, "error": res_data["error"].get("message", "Erreur Meta API")}), 400
+        if share_fb:
+            print("[META API] Envoi en cours vers la page Facebook...")
             
-        print(f"[META API] Publication en ligne réussie ! ID Post : {res_data.get('id')}")
-        return jsonify({"success": True, "fb_post_id": res_data.get('id')})
+            image_path = UPLOAD_FOLDER / "last_output.jpg"
+            if not image_path.exists():
+                return jsonify({"success": False, "error": "Fichier image introuvable pour la publication."}), 400
+
+            # Sécurité additionnelle : Si pour une raison ou une autre le numéro n'est pas écrit par l'utilisateur, l'API le rajoute de force à l'envoi
+            if PHONE_RESERVATION not in caption_fb:
+                caption_fb = f"{caption_fb}\n\n📞 Réservation : {PHONE_RESERVATION}"
+
+            url = f"https://graph.facebook.com/v25.0/me/photos"
+            payload = {
+                'message': caption_fb,
+                'access_token': META_ACCESS_TOKEN
+            }
+            
+            with open(str(image_path), 'rb') as img_file:
+                files = {
+                    'source': ('post.jpg', img_file, 'image/jpeg')
+                }
+                response = requests.post(url, data=payload, files=files)
+                res_data = response.json()
+
+            if "error" in res_data:
+                return jsonify({"success": False, "error": res_data["error"].get("message", "Erreur Facebook")}), 400
+                
+            print(f"[META API] Succès ! ID du Post Facebook : {res_data.get('id')}")
+
+        return jsonify({"success": True})
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# Synchronisation directe des images décors en Base64 sans modules tiers
 @app.route("/get_decors")
 def get_decors():
-    decors_b64 = {}
-    for name in ["salle", "terrasse"]:
-        p = UPLOAD_FOLDER / f"decor_{name}.jpg"
-        if p.exists():
-            with open(p, "rb") as f:
-                decors_b64[name] = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        else:
-            decors_b64[name] = ""
-    return jsonify(decors_b64)
+    from decor_manager import get_all_decors_b64
+    return jsonify(get_all_decors_b64())
 
 
 @app.route("/save_decor/<decor_name>", methods=["POST"])
 def save_decor_route(decor_name):
+    from decor_manager import save_decor, get_all_decors_b64
     if "image" not in request.files:
-        return jsonify({"error": "Aucune image reçue"}), 400
+        return jsonify({"error": "Pas d'image"}), 400
     file = request.files["image"]
     raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
     jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-    
     file.stream.seek(0)
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
-        
     convert_to_jpg(raw_path, jpg_path)
-    return sync_decors_response()
+    save_decor(decor_name, jpg_path)
+    return jsonify({"success": True, "decors": get_all_decors_b64()})
 
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-    if p.exists():
-        p.unlink()
-    return sync_decors_response()
-
-
-def sync_decors_response():
-    decors_b64 = {}
-    for name in ["salle", "terrasse"]:
-        p = UPLOAD_FOLDER / f"decor_{name}.jpg"
-        if p.exists():
-            with open(p, "rb") as f:
-                decors_b64[name] = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        else:
-            decors_b64[name] = ""
-    return jsonify({"success": True, "decors": decors_b64})
+    from decor_manager import delete_decor, get_all_decors_b64
+    delete_decor(decor_name)
+    return jsonify({"success": True, "decors": get_all_decors_b64()})
 
 
 if __name__ == "__main__":
