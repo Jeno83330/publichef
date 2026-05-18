@@ -1,37 +1,33 @@
 import os
-from genai import Client
+import anthropic
 
 class AIEngine:
     def __init__(self):
-        self.client = Client()
-        self.model = "gemini-2.5-flash"
-
-    def _call_modern_api(self, contents):
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents
-            )
-            return response.text
-        except Exception as e:
-            print(f"[ERROR AI_ENGINE 2.5] : {str(e)}")
-            return "Erreur lors de la génération du texte avec le nouveau moteur."
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise EnvironmentError("ANTHROPIC_API_KEY manquante")
+        self.client = anthropic.Anthropic(api_key=api_key)
 
     def describe_dish_from_bytes(self, img_b64):
-        import base64
-        from PIL import Image
-        import io
-        
-        image_data = base64.b64decode(img_b64)
-        img = Image.open(io.BytesIO(image_data))
-        
-        prompt = "Analyse cette photo de plat. Donne une description culinaire ultra-précise, gastronomique et vendeuse du plat."
-        return self._call_modern_api([img, prompt])
+        message = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role":"user","content":[{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":img_b64}},{"type":"text","text":"Decris ce plat en 2-3 phrases pour un restaurateur. Nom du plat, ingredients, presentation. Sois precis et appetissant."}]}]
+        )
+        return message.content[0].text
 
     def generate_facebook_caption(self, description):
-        prompt = f"Rédige une légende captivante pour Facebook et Instagram basée sur : '{description}'. Ton chaleureux, pro, axé cuisine maison. Invitation à réserver, pas de numéro de téléphone."
-        return self._call_modern_api([prompt])
+        message = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role":"user","content":f"Tu es un restaurateur passionne du Var a La Ciotat. Ecris une publication Facebook (max 200 mots) pour ce plat : {description}. Ton chaleureux et authentique. Pas de hashtags. Pas de numero de telephone."}]
+        )
+        return message.content[0].text
 
     def generate_hashtags(self, description):
-        prompt = f"Génère une ligne de 8 hashtags pertinents séparés par des espaces basés sur : '{description}'. Inclus #LaCiotat."
-        return self._call_modern_api([prompt])
+        message = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=100,
+            messages=[{"role":"user","content":f"Genere 10 hashtags pour ce plat de restaurant a La Ciotat dans le Var : {description}. Inclus #LaCiotat #Var #Provence. Format: #tag1 #tag2..."}]
+        )
+        return message.content[0].text
