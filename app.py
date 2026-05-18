@@ -32,6 +32,45 @@ def resize_and_convert_to_jpg(src, dst, max_size=(900, 900)):
 def index():
     return render_template("index.html")
 
+@app.route("/upload_decor_secours", methods=["GET", "POST"])
+def upload_decor_secours():
+    if request.method == "POST":
+        if "decor_file" not in request.files:
+            return "<h3>Erreur : Aucun fichier détecté dans la requête.</h3>", 400
+        file = request.files["decor_file"]
+        decor_name = request.form.get("decor_name", "salle")
+        if file.filename == "":
+            return "<h3>Erreur : Le fichier sélectionné est vide.</h3>", 400
+            
+        raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
+        jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+        
+        file.save(str(raw_path))
+        resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
+        return f"<h3>Succes ! Le decor '{decor_name}' a ete enregistre de force sur Render.</h3><a href='/'>Retour a l'accueil</a>"
+
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head><title>Secours PubliChef</title><meta charset="utf-8"></head>
+    <body style="font-family:sans-serif; background:#121212; color:#fff; padding:50px; text-align:center;">
+        <div style="max-width:500px; margin:0 auto; background:#1e1e1e; padding:30px; border-radius:10px; border:1px solid #333;">
+            <h2>🛠️ Passerelle de Secours Décors</h2>
+            <form action="/upload_decor_secours" method="post" enctype="multipart/form-data" style="margin-top:30px;">
+                <label>1. Emplacement cible :</label><br>
+                <select name="decor_name" style="padding:10px; width:100%; margin:10px 0; background:#222; color:#fff; border:1px solid #444;">
+                    <option value="salle">Salle</option>
+                    <option value="terrasse">Terrasse</option>
+                </select><br><br>
+                <label>2. Fichier JPEG sur le Mac :</label><br>
+                <input type="file" name="decor_file" accept="image/*" style="margin:20px 0;"><br><br>
+                <input type="submit" value="FORCER L'INSTALLATION" style="background:#d4af37; color:#000; padding:12px 25px; border:none; font-weight:bold; cursor:pointer; width:100%;">
+            </form>
+        </div>
+    </body>
+    </html>
+    '''
+
 @app.route("/get_decors")
 def get_decors():
     decors_b64 = {}
@@ -46,46 +85,25 @@ def get_decors():
 
 @app.route("/save_decor/<decor_name>", methods=["POST"])
 def save_decor_route(decor_name):
-    # Analyse brute de tous les conteneurs de fichiers possibles envoyés par l'iPhone
     file_key = None
     for key in request.files.keys():
         file_key = key
         break
-        
     if not file_key and "image" in request.files:
         file_key = "image"
-    elif not file_key:
-        # Repli de sécurité si l'interface envoie le fichier sans clé nommée
-        return jsonify({"error": "Aucun flux de fichier détecté dans la requête informatique"}), 400
-        
+    if not file_key:
+        return jsonify({"error": "Fichier manquant"}), 400
     try:
         file = request.files[file_key]
         raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
         jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-        
         file.stream.seek(0)
         with open(str(raw_path), "wb") as f:
             f.write(file.stream.read())
-            
         resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
-        
-        # Generation de la reponse sécurisée : si un décor est vide, on renvoie une chaîne vide au lieu de planter
-        decors_b64 = {}
-        for name in ["salle", "terrasse"]:
-            p = UPLOAD_FOLDER / f"decor_{name}.jpg"
-            if p.exists():
-                try:
-                    with open(p, "rb") as f:
-                        decors_b64[name] = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-                except Exception:
-                    decors_b64[name] = ""
-            else:
-                decors_b64[name] = ""
-                
-        return jsonify({"success": True, "decors": decors_b64})
-        
+        return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": f"Erreur lors de la sauvegarde locale : {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/generate_v2", methods=["POST"])
 def generate_v2():
