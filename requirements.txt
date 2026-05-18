@@ -1,9 +1,6 @@
 flask
-python-dotenv
-anthropic
-google-genai
-Pillow
+pillow
 requests
-replicate
-numpygunicorn==21.2.0
+python-dotenv
+google-generativeai
 gunicorn==21.2.0
