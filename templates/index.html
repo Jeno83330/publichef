@@ -3,511 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PubliChef — Assistant Culinaire Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>PubliChef Studio</title>
     <style>
-        :root {
-            --bg: #0A0A0F; --card: #13131A; --border: rgba(255,255,255,0.08);
-            --gold: #F5C842; --gold-light: #FFE08A;
-            --gold-gradient: linear-gradient(135deg, #F5C842 0%, #D4AF37 100%);
-            --white: #FFFFFF; --gray: #8E8E93; --gray-light: #AEAEB2;
-            --success: #34C759; --error: #FF3B30; --nav-bg: #13131A;
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
         }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--white); min-height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; }
-        header { padding:16px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:#0A0A0F; height:70px; position:sticky; top:0; z-index:100; }
-        .logo img { height:42px; width:auto; border-radius:10px; display:block; }
-        .step-indicator { display:flex; gap:8px; align-items:center; }
-        .step-dot { width:8px; height:8px; border-radius:50%; background:var(--border); transition:all 0.4s; }
-        .step-dot.active { background:var(--gold); width:24px; border-radius:4px; }
-        .step-dot.done { background:var(--success); }
-        .generating-badge { position:fixed; top:78px; left:50%; transform:translateX(-50%); background:rgba(245,200,66,0.15); border:1px solid rgba(245,200,66,0.4); color:var(--gold); padding:8px 18px; border-radius:50px; font-size:13px; font-weight:600; display:none; z-index:150; white-space:nowrap; }
-        .generating-badge.visible { display:flex; align-items:center; gap:8px; }
-        .badge-dot { width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulsebadge 1s infinite; }
-        @keyframes pulsebadge { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .main-content { flex:1; display:flex; flex-direction:column; }
-        .screen { display:none; padding:24px 24px 100px; flex-direction:column; flex:1; animation:fadeIn 0.4s ease-out; }
-        .screen.active { display:flex; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        .screen-title { font-family:'Playfair Display',serif; font-size:28px; font-weight:700; margin-bottom:8px; }
-        .screen-subtitle { color:var(--gray); font-size:14px; margin-bottom:32px; line-height:1.5; }
-        .upload-card { background:var(--card); border:1.5px dashed var(--border); border-radius:24px; padding:36px 24px; text-align:center; cursor:pointer; position:relative; overflow:hidden; margin-bottom:24px; }
-        .upload-card.has-image { border-color:var(--gold); border-style:solid; padding:12px; }
-        .upload-card input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:10; }
-        .upload-preview { width:100%; height:220px; object-fit:cover; border-radius:16px; display:none; }
-        .upload-card.has-image .upload-preview { display:block; }
-        .upload-card.has-image .upload-placeholder { display:none; }
-        .upload-icon { font-size:44px; margin-bottom:14px; display:block; }
-        .upload-label { font-size:16px; font-weight:600; margin-bottom:6px; }
-        .upload-hint { font-size:13px; color:var(--gray); }
-        .upload-badge { position:absolute; top:12px; right:12px; background:var(--gold); color:#000; font-size:11px; font-weight:600; padding:3px 8px; border-radius:50px; }
-        .decor-section { margin-bottom:24px; }
-        .section-label { font-size:12px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:14px; }
-        .decor-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
-        .decor-option { background:var(--card); border:2px solid var(--border); border-radius:20px; padding:16px; text-align:center; cursor:pointer; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:120px; }
-        .decor-option.selected { border-color:var(--gold); background:rgba(245,200,62,0.04); }
-        .decor-option .decor-icon { font-size:32px; margin-bottom:8px; }
-        .decor-option .decor-name { font-size:14px; font-weight:600; }
-        .decor-option.locked { opacity:0.35; cursor:not-allowed; }
-        .decor-modify-btn { background:rgba(245,200,66,0.12); border:1px solid rgba(245,200,66,0.3); color:var(--gold); padding:5px 12px; border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; margin-top:8px; width:90%; position:relative; z-index:15; }
-        .btn-primary { background:var(--gold-gradient); color:#000; border:none; padding:18px; border-radius:18px; font-size:16px; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 16px rgba(245,200,66,0.15); margin-top:auto; }
-        .btn-primary:disabled { opacity:0.35; cursor:not-allowed; box-shadow:none; }
-        .btn-secondary { background:transparent; color:var(--gray-light); border:1px solid var(--border); padding:16px; border-radius:18px; font-size:15px; font-weight:600; cursor:pointer; width:100%; margin-top:12px; }
-        .loading-container { background:var(--card); padding:40px 30px; border-radius:28px; border:1px solid var(--border); width:100%; margin:auto 0; }
-        .loading-ring { width:72px; height:72px; border:3.5px solid rgba(245,200,66,0.1); border-top-color:var(--gold); border-radius:50%; animation:spin 0.9s linear infinite; margin:0 auto 28px; }
-        @keyframes spin { to{transform:rotate(360deg)} }
-        .loading-title { font-family:'Playfair Display',serif; font-size:24px; font-weight:700; margin-bottom:12px; text-align:center; }
-        .loading-desc { color:var(--gold); font-size:15px; margin-bottom:28px; font-weight:600; min-height:22px; text-align:center; }
-        .progress-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.04); border-radius:100px; overflow:hidden; }
-        .progress-bar { width:0%; height:100%; background:linear-gradient(90deg,var(--gold) 0%,#34C759 100%); border-radius:100px; transition:width 0.4s cubic-bezier(0.4,0,0.2,1); }
-        .result-image { width:100%; border-radius:24px; margin-bottom:24px; aspect-ratio:4/5; object-fit:cover; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
-        .result-image-container { position:relative; margin-bottom:16px; }
-        .download-btn { position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.2); color:white; padding:10px 16px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; }
-        .result-tabs { display:flex; background:var(--card); border-radius:14px; padding:4px; margin-bottom:20px; }
-        .result-tab { flex:1; padding:12px; color:var(--white); font-size:14px; font-weight:600; text-align:center; border-radius:10px; }
-        .result-tab.active { background:var(--gold); color:#000; }
-        .caption-box { background:var(--card); border-radius:20px; padding:20px; padding-bottom:75px; margin-bottom:16px; position:relative; border:1px solid var(--border); }
-        .caption-text { font-size:14.5px; line-height:1.65; color:rgba(255,255,255,0.9); white-space:pre-wrap; word-break:break-word; }
-        .caption-text[contenteditable="true"] { outline:1.5px solid var(--gold); background:rgba(0,0,0,0.25); border-radius:12px; padding:10px; }
-        .edit-btn,.copy-btn { position:absolute; bottom:18px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.2); color:var(--gold); padding:6px 16px; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer; z-index:10; }
-        .edit-btn { left:20px; } .edit-btn.editing { background:var(--success); border-color:var(--success); color:white; }
-        .copy-btn { right:20px; } .copy-btn.copied { background:var(--success); border-color:var(--success); color:white; }
-        .error-container { background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3); border-radius:16px; padding:16px; color:#FF8781; font-size:14px; margin-bottom:16px; text-align:center; display:none; font-weight:600; }
-        .history-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-        .history-card { cursor:pointer; border-radius:18px; overflow:hidden; background:var(--card); border:1px solid var(--border); }
-        .history-card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
-        .history-card-date { padding:10px 12px; font-size:12px; color:var(--gray); font-weight:500; }
-        nav { width:100%; background:var(--nav-bg); border-top:1px solid var(--border); display:flex; padding:16px 0 32px; margin-top:auto; }
-        .nav-btn { flex:1; background:none; border:none; font-size:24px; cursor:pointer; opacity:0.3; display:flex; align-items:center; justify-content:center; }
-        .nav-btn.active { opacity:1; color:var(--gold); }
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 30px;
+        }
+        h1 span { color: #d4af37; }
+        .card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .label {
+            color: #d4af37;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .upload-zone {
+            border: 2px dashed #444;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .upload-zone.active { border-color: #d4af37; }
+        .preview-img {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: none;
+        }
+        select {
+            width: 100%;
+            background-color: #262626;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 25px;
+        }
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, #d4af37, #aa8416);
+            color: #121212;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn:disabled { background: #444; color: #888; }
+        .error-box {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid #d32f2f;
+            color: #ef5350;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+        #result-area { display: none; margin-top: 20px; }
+        .result-text {
+            background: #262626;
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <div class="logo"><img src="/static/logo.png" alt="PubliChef"></div>
-    <div class="step-indicator">
-        <div class="step-dot active" id="dot1"></div>
-        <div class="step-dot" id="dot2"></div>
-        <div class="step-dot" id="dot3"></div>
-    </div>
-</header>
-
-<div class="generating-badge" id="generatingBadge"><div class="badge-dot"></div>Génération en cours...</div>
-
-<div class="main-content">
-
-    <!-- SCREEN CAPTURE -->
-    <div class="screen active" id="screen-capture">
-        <div class="screen-title">Créez votre post</div>
-        <div class="screen-subtitle">Photographiez votre plat et choisissez votre décor.</div>
-
-        <!-- Photo du plat -->
-        <div class="upload-card" id="dishCard">
-            <input type="file" id="dishInput" accept="image/*">
-            <img class="upload-preview" id="dishPreview" src="" alt="">
-            <div class="upload-placeholder">
-                <span class="upload-icon">📸</span>
-                <div class="upload-label">Photo du plat</div>
-                <div class="upload-hint">Pellicule ou appareil photo</div>
-            </div>
-            <span class="upload-badge">Étape 1</span>
+<div class="container">
+    <h1>PubliChef <span>Studio</span></h1>
+    
+    <div class="card" id="main-card">
+        <div class="label">1. Photo du Plat</div>
+        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('dish-input').click()">
+            <span id="upload-placeholder">📸 Prendre ou choisir une photo</span>
+            <img id="preview" class="preview-img">
         </div>
+        <input type="file" id="dish-input" accept="image/*" style="display: none;">
 
-        <!-- Décors permanents -->
-        <div class="decor-section">
-            <div class="section-label">Sélection du décor permanent</div>
-            <div class="decor-grid" id="decorGrid">
-                <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
-                    <div id="decor-preview-salle" style="display:none;width:100%;">
-                        <img id="decor-img-salle" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
-                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Salle du restaurant</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier</button>
-                    </div>
-                    <div id="decor-placeholder-salle">
-                        <span class="decor-icon">🏛️</span>
-                        <div class="decor-name">Salle du restaurant</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter</button>
-                    </div>
-                </div>
-                <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
-                    <div id="decor-preview-terrasse" style="display:none;width:100%;">
-                        <img id="decor-img-terrasse" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
-                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Terrasse</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier</button>
-                    </div>
-                    <div id="decor-placeholder-terrasse">
-                        <span class="decor-icon">🌿</span>
-                        <div class="decor-name">Terrasse</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter</button>
-                    </div>
-                </div>
-                <div class="decor-option locked">
-                    <span class="decor-icon">🔒</span>
-                    <div class="decor-name" style="color:var(--gray);">Bar / Comptoir</div>
-                </div>
-                <div class="decor-option locked">
-                    <span class="decor-icon">🔒</span>
-                    <div class="decor-name" style="color:var(--gray);">Décor personnalisé</div>
-                </div>
-            </div>
-            <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
-        </div>
+        <div class="label">2. Choix de l'Ambiance</div>
+        <select id="decor-input">
+            <option value="salle">Ambiance Brasserie / Salle</option>
+            <option value="terrasse">Ambiance Terrasse Ensoleillée</option>
+        </select>
 
-        <!-- Décor à la volée -->
-        <div class="upload-card" id="envCard" style="margin-bottom:24px;">
-            <input type="file" id="envInput" accept="image/*">
-            <img class="upload-preview" id="envPreview" src="" alt="">
-            <div class="upload-placeholder" id="envPlaceholder">
-                <span class="upload-icon">🏛️</span>
-                <div class="upload-label">Photo décor à la volée</div>
-                <div class="upload-hint">Optionnel — remplace le décor permanent</div>
-            </div>
-            <span class="upload-badge">Étape 2</span>
-        </div>
-
-        <div class="error-container" id="errorBlock">Le serveur met du temps à répondre. Réessayez la génération.</div>
-        <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>✨ Créer mon post</button>
+        <button class="btn" id="submit-btn" onclick="envoiStudio()">Sublimer mon Plat</button>
+        <div class="error-box" id="error-display"></div>
     </div>
 
-    <!-- SCREEN LOADING -->
-    <div class="screen" id="screen-loading">
-        <div class="loading-container">
-            <div class="loading-ring"></div>
-            <div class="loading-title">Sublimation Active...</div>
-            <div class="loading-desc" id="loadingPhaseText">Étape 1 : Amélioration des textures culinaires...</div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-        </div>
+    <div class="card" id="result-area">
+        <div class="label">✨ Rendu Final</div>
+        <img id="output-image" style="width:100%; border-radius:8px;">
+        <div class="label" style="margin-top:15px;">📝 Légende Générée</div>
+        <div class="result-text" id="output-text"></div>
     </div>
-
-    <!-- SCREEN RESULT -->
-    <div class="screen" id="screen-result">
-        <div class="result-image-container">
-            <img class="result-image" id="resultImage" src="" alt="Post finalisé">
-            <button class="download-btn" onclick="downloadImage()">⬇️ Télécharger</button>
-        </div>
-        <div class="result-tabs">
-            <div class="result-tab active">Publication Unique (FB + Insta)</div>
-        </div>
-        <div class="caption-box">
-            <div class="caption-text" id="fbText"></div>
-            <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
-            <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
-        </div>
-        <button onclick="publishPost()" class="btn-primary" style="background:#25D366;color:#000;font-weight:700;box-shadow:0 4px 16px rgba(37,211,102,0.2);">
-            🚀 Publier en 1 clic
-        </button>
-        <p id="publish-status" style="font-size:13.5px;text-align:center;margin-top:12px;font-weight:600;"></p>
-        <button class="btn-secondary" onclick="resetApp()">📸 Faire un nouveau post</button>
-    </div>
-
-    <!-- SCREEN HISTORY -->
-    <div class="screen" id="screen-history">
-        <div class="screen-title" style="margin-bottom:24px;">Historique des créations</div>
-        <div id="historyGrid" class="history-grid"></div>
-        <div id="historyDetail" style="display:none;">
-            <button class="btn-secondary" onclick="closeHistDetail()" style="margin-bottom:20px;padding:12px;">← Retour</button>
-            <div class="result-image-container" style="margin-bottom:16px;">
-                <img id="histDetailImg" style="width:100%;border-radius:20px;display:block;" src="" alt="">
-                <button class="download-btn" onclick="downloadHistImage()">⬇️ Télécharger</button>
-            </div>
-            <div class="caption-box">
-                <div class="caption-text" id="histFbText"></div>
-                <button class="copy-btn" onclick="copyText('histFbText', this)">Copier</button>
-            </div>
-            <button onclick="republishHistoryPost()" class="btn-primary" style="background:#25D366;color:#000;font-weight:700;">
-                🔄 Republier ce post en 1 clic
-            </button>
-            <p id="republish-status" style="font-size:13.5px;text-align:center;margin-top:12px;font-weight:600;"></p>
-        </div>
-    </div>
-
 </div>
 
-<nav>
-    <button class="nav-btn active" id="nav0" onclick="goCapture()">📸</button>
-    <button class="nav-btn" id="nav1" onclick="goHistory()">🗂️</button>
-</nav>
-
 <script>
-    let dishFile = null, envFile = null, isGenerating = false, selectedDecor = 'salle';
-    let savedDecors = {}, modifyingDecor = null, currentHistoryPost = null;
+    const input = document.getElementById('dish-input');
+    const preview = document.getElementById('preview');
+    const placeholder = document.getElementById('upload-placeholder');
+    const zone = document.getElementById('drop-zone');
 
-    async function loadSavedDecors() {
-        try {
-            const res = await fetch('/get_decors');
-            savedDecors = await res.json();
-            ['salle', 'terrasse'].forEach(n => {
-                if (savedDecors[n]) {
-                    document.getElementById('decor-preview-' + n).style.display = 'block';
-                    document.getElementById('decor-placeholder-' + n).style.display = 'none';
-                    document.getElementById('decor-img-' + n).src = savedDecors[n];
-                }
-            });
-            checkReady();
-        } catch(e) {}
-    }
-
-    function modifyDecor(event, decorName) {
-        event.stopPropagation();
-        modifyingDecor = decorName;
-        document.getElementById('decorModifyInput').click();
-    }
-
-    document.getElementById('decorModifyInput').addEventListener('change', async function() {
-        if (!this.files[0] || !modifyingDecor) return;
-        const formData = new FormData();
-        formData.append('image', this.files[0]);
-        try {
-            const res = await fetch('/save_decor/' + modifyingDecor, { method: 'POST', body: formData });
-            const data = await res.json();
-            savedDecors = data.decors;
-            loadSavedDecors();
-        } catch(e) {}
-        this.value = '';
-        modifyingDecor = null;
-    });
-
-    document.getElementById('dishInput').addEventListener('change', function() {
-        if (this.files[0]) {
-            dishFile = this.files[0];
+    // Déclencheur d'affichage immédiat dès que l'iPhone valide la photo
+    input.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
             const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('dishPreview').src = e.target.result;
-                document.getElementById('dishCard').classList.add('has-image');
-            };
-            reader.readAsDataURL(dishFile);
-            document.getElementById('errorBlock').style.display = 'none';
-            checkReady();
-        }
-    });
-
-    document.getElementById('envInput').addEventListener('change', function() {
-        if (this.files[0]) {
-            envFile = this.files[0];
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('envPreview').src = e.target.result;
-                document.getElementById('envCard').classList.add('has-image');
-            };
-            reader.readAsDataURL(envFile);
-        }
-    });
-
-    function selectDecor(el) {
-        if (el.classList.contains('locked')) return;
-        document.querySelectorAll('.decor-option').forEach(d => d.classList.remove('selected'));
-        el.classList.add('selected');
-        selectedDecor = el.dataset.decor;
-        checkReady();
-    }
-
-    function checkReady() {
-        document.getElementById('btnGenerate').disabled = !dishFile;
-    }
-
-    async function startGeneration() {
-        if (isGenerating) { showScreen('loading'); setActiveNav(-1); return; }
-        document.getElementById('errorBlock').style.display = 'none';
-        if (!dishFile) return;
-
-        isGenerating = true;
-        document.getElementById('generatingBadge').classList.add('visible');
-        document.getElementById('dot1').className = "step-dot done";
-        document.getElementById('dot2').className = "step-dot active";
-        document.getElementById('dot3').className = "step-dot";
-        showScreen('loading');
-        setActiveNav(-1);
-
-        const pb = document.getElementById('progressBar');
-        const phaseText = document.getElementById('loadingPhaseText');
-        let progress = 0;
-        pb.style.width = '0%';
-
-        phaseText.innerText = "Étape 1 : Sublimation et reliefs culinaires...";
-        const pInterval = setInterval(() => {
-            if (progress < 35) { progress += 2; pb.style.width = progress + '%'; }
-        }, 150);
-
-        setTimeout(() => {
-            if (progress < 70) {
-                phaseText.innerText = "Étape 2 : Fusion de l'éclairage et intégration au décor...";
-                const pInterval2 = setInterval(() => {
-                    if (progress < 75) { progress += 1; pb.style.width = progress + '%'; }
-                    else clearInterval(pInterval2);
-                }, 200);
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                zone.classList.add('active');
             }
-        }, 2000);
+            reader.readAsDataURL(file);
+        }
+    });
 
-        setTimeout(() => {
-            phaseText.innerText = "Étape 3 : Rédaction des légendes Meta unifiées...";
-            if (progress < 85) { progress = 85; pb.style.width = '85%'; }
-        }, 5000);
+    async function envoiStudio() {
+        const btn = document.getElementById('submit-btn');
+        const err = document.getElementById('error-display');
+        
+        if (!input.files[0]) {
+            err.textContent = "Veuillez sélectionner une photo de plat.";
+            err.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        err.style.display = 'none';
+        btn.textContent = "Calcul IA en cours...";
 
         const formData = new FormData();
-        formData.append('dish', dishFile);
-        if (envFile) formData.append('environment', envFile);
-        formData.append('decor', selectedDecor);
+        // Alignement strict sur les deux clés lues par ton app.py actuel
+        formData.append('dish_image', input.files[0]);
+        formData.append('decor_type', document.getElementById('decor-input').value);
 
         try {
-            const response = await fetch('/generate_v2', { method: 'POST', body: formData });
+            const response = await fetch('/generate_v2', {
+                method: 'POST',
+                body: formData
+            });
+
             const data = await response.json();
-            clearInterval(pInterval);
-            isGenerating = false;
-            document.getElementById('generatingBadge').classList.remove('visible');
 
-            if (!response.ok || data.error) throw new Error(data.error || "Erreur serveur");
+            if (!response.ok) {
+                throw new Error(data.error || "Erreur de génération.");
+            }
 
-            pb.style.width = '100%';
-            phaseText.innerText = "Post finalisé !";
+            // Réception et affichage direct
+            document.getElementById('output-image').src = data.image_url;
+            document.getElementById('output-text').textContent = data.caption;
+            document.getElementById('result-area').style.display = 'block';
+            
+            btn.disabled = false;
+            btn.textContent = "Sublimer mon Plat";
 
-            setTimeout(() => {
-                document.getElementById('resultImage').src = data.image;
-                document.getElementById('fbText').textContent = data.facebook;
-                document.getElementById('dot1').className = "step-dot done";
-                document.getElementById('dot2').className = "step-dot done";
-                document.getElementById('dot3').className = "step-dot done";
-                showScreen('result');
-                setActiveNav(-1);
-            }, 500);
-
-        } catch(e) {
-            clearInterval(pInterval);
-            isGenerating = false;
-            document.getElementById('generatingBadge').classList.remove('visible');
-            showScreen('capture');
-            setActiveNav(0);
-            document.getElementById('errorBlock').style.display = 'block';
-            document.getElementById('dot1').className = "step-dot active";
-            document.getElementById('dot2').className = "step-dot";
-            document.getElementById('dot3').className = "step-dot";
+        } catch (e) {
+            err.textContent = e.message;
+            err.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = "Sublimer mon Plat";
         }
     }
-
-    function downloadImage() {
-        const img = document.getElementById('resultImage');
-        if (!img.src) return;
-        const a = document.createElement('a');
-        a.href = img.src;
-        a.download = 'publichef_' + new Date().toISOString().slice(0,10) + '.jpg';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function downloadHistImage() {
-        const img = document.getElementById('histDetailImg');
-        if (!img.src) return;
-        const a = document.createElement('a');
-        a.href = img.src;
-        a.download = 'publichef_history_' + new Date().toISOString().slice(0,10) + '.jpg';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function publishPost() {
-        const statusTxt = document.getElementById('publish-status');
-        statusTxt.style.color = 'var(--gold)';
-        statusTxt.innerText = "Envoi en cours...";
-        fetch('/publish_to_socials', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ caption_fb: document.getElementById('fbText').textContent })
-        }).then(r => r.json()).then(data => {
-            statusTxt.style.color = data.success ? 'var(--success)' : 'var(--error)';
-            statusTxt.innerText = data.success ? "🎉 En ligne sur Facebook & Instagram !" : "❌ " + data.error;
-        });
-    }
-
-    async function loadHistory() {
-        const grid = document.getElementById('historyGrid');
-        document.getElementById('historyDetail').style.display = 'none';
-        grid.style.display = 'grid';
-        grid.innerHTML = '<div style="color:var(--gray);grid-column:span 2;text-align:center;padding:40px;">Chargement...</div>';
-        try {
-            const res = await fetch('/history_data');
-            const posts = await res.json();
-            window._historyPosts = posts;
-            if (!posts.length) { grid.innerHTML = '<div style="color:var(--gray);grid-column:span 2;text-align:center;padding:40px;">Aucune création</div>'; return; }
-            grid.innerHTML = posts.map(p =>
-                '<div class="history-card" onclick="openHistDetail(\'' + p.id + '\')">' +
-                '<img src="' + p.image_data + '" alt="">' +
-                '<div class="history-card-date">' + p.date + '</div></div>'
-            ).join('');
-        } catch(e) {}
-    }
-
-    function openHistDetail(id) {
-        const post = window._historyPosts.find(p => p.id === id);
-        currentHistoryPost = post;
-        document.getElementById('historyGrid').style.display = 'none';
-        document.getElementById('historyDetail').style.display = 'block';
-        document.getElementById('histDetailImg').src = post.image_data;
-        document.getElementById('histFbText').textContent = post.facebook;
-        document.getElementById('republish-status').innerText = '';
-    }
-
-    function closeHistDetail() {
-        document.getElementById('historyDetail').style.display = 'none';
-        document.getElementById('historyGrid').style.display = 'grid';
-    }
-
-    function republishHistoryPost() {
-        if (!currentHistoryPost) return;
-        const statusTxt = document.getElementById('republish-status');
-        statusTxt.style.color = 'var(--gold)';
-        statusTxt.innerText = "Envoi...";
-        fetch('/publish_to_socials', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ caption_fb: document.getElementById('histFbText').textContent })
-        }).then(r => r.json()).then(data => {
-            statusTxt.style.color = data.success ? 'var(--success)' : 'var(--error)';
-            statusTxt.innerText = data.success ? "🎉 Reposté !" : "❌ " + data.error;
-        });
-    }
-
-    function showScreen(name) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById('screen-' + name).classList.add('active');
-    }
-
-    function goCapture() {
-        if (isGenerating) { showScreen('loading'); setActiveNav(-1); return; }
-        showScreen('capture'); setActiveNav(0);
-    }
-
-    function goHistory() { showScreen('history'); setActiveNav(1); loadHistory(); }
-
-    function setActiveNav(idx) {
-        document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
-    }
-
-    function toggleEdit(id, btn) {
-        const el = document.getElementById(id);
-        if (el.contentEditable === 'true') { el.contentEditable = 'false'; btn.textContent = 'Modifier'; btn.classList.remove('editing'); }
-        else { el.contentEditable = 'true'; el.focus(); btn.textContent = 'OK'; btn.classList.add('editing'); }
-    }
-
-    function copyText(id, btn) {
-        navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
-            btn.textContent = 'Copié !'; btn.classList.add('copied');
-            setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
-        });
-    }
-
-    function resetApp() {
-        dishFile = null; envFile = null;
-        document.getElementById('dishInput').value = '';
-        document.getElementById('envInput').value = '';
-        document.getElementById('dishCard').classList.remove('has-image');
-        document.getElementById('envCard').classList.remove('has-image');
-        document.getElementById('publish-status').innerText = '';
-        document.getElementById('errorBlock').style.display = 'none';
-        document.getElementById('dot1').className = "step-dot active";
-        document.getElementById('dot2').className = "step-dot";
-        document.getElementById('dot3').className = "step-dot";
-        showScreen('capture'); setActiveNav(0);
-    }
-
-    document.addEventListener('DOMContentLoaded', loadSavedDecors);
 </script>
 </body>
 </html>
