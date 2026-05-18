@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Diagnostic Debug)
+app.py — Interface web PubliChef V2 (Version Production Finale — Stabilisée & Corrigée)
 """
 
 import os
@@ -77,32 +77,29 @@ def generate_v2():
     dish_raw = UPLOAD_FOLDER / "dish_raw"
     dish_jpg = UPLOAD_FOLDER / "dish.jpg"
     dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
-    dish_ai = UPLOAD_FOLDER / "dish_ai.jpg"
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
+    dish_file.stream.seek(0)
+    with open(str(dish_raw), "wb") as f:
+        f.write(dish_file.stream.read())
+        
+    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
+    shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
+
+    saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+    if "environment" in request.files and request.files["environment"].filename != '':
+        env_file = request.files["environment"]
+        env_raw = UPLOAD_FOLDER / "env_raw"
+        env_file.stream.seek(0)
+        with open(str(env_raw), "wb") as f:
+            f.write(env_file.stream.read())
+        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
+    elif saved_decor_path.exists():
+        shutil.copy(str(saved_decor_path), str(env_jpg))
+    else:
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+
     try:
-        dish_file.stream.seek(0)
-        with open(str(dish_raw), "wb") as f:
-            f.write(dish_file.stream.read())
-            
-        resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
-        resize_and_convert_to_jpg(dish_raw, dish_ai, max_size=(2000, 2000))
-
-        shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
-
-        saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-        if "environment" in request.files and request.files["environment"].filename != '':
-            env_file = request.files["environment"]
-            env_raw = UPLOAD_FOLDER / "env_raw"
-            env_file.stream.seek(0)
-            with open(str(env_raw), "wb") as f:
-                f.write(env_file.stream.read())
-            resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
-        elif saved_decor_path.exists():
-            shutil.copy(str(saved_decor_path), str(env_jpg))
-        else:
-            return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
-
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
@@ -115,7 +112,9 @@ def generate_v2():
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
+            
             img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
+            
             buffer = io.BytesIO()
             img.save(buffer, format="JPEG", quality=92)
             compressed = buffer.getvalue()
@@ -128,8 +127,9 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        with open(str(dish_ai), "rb") as f_ai:
-            dish_raw_b64 = base64.b64encode(f_ai.read()).decode("utf-8")
+        # RECONNAISSANCE BRUTE : On lit le fichier d'origine de l'iPhone pour éviter toute confusion (Magret / Boeuf)
+        with open(str(dish_raw), "rb") as f_raw:
+            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
         ai = AIEngine()
         description = ai.describe_dish_from_bytes(dish_raw_b64)
@@ -155,7 +155,6 @@ def generate_v2():
 
     except Exception as e:
         gc.collect()
-        # CAPTURE DE FLUX : On force l'application à renvoyer le vrai coupable à l'écran
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
@@ -229,6 +228,7 @@ def save_decor_route(decor_name):
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
+    # CORRECTION : p utilise désormais la variable d'entrée decor_name
     p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
@@ -294,4 +294,4 @@ def connect_meta_auto():
     '''
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, host="0.0.0.0") # Mode diagnostic activé
+    app.run(debug=False, port=5000, host="0.0.0.0")
