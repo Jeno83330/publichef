@@ -19,7 +19,6 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_RESERVATION = "04 42 08 65 28"
 
-# RECALIBRAGE HD : On remonte à 1200px et 90% de qualité
 def resize_and_convert_to_jpg(src, dst, max_size=(1200, 1200)):
     try:
         with Image.open(str(src)) as im:
@@ -81,7 +80,7 @@ def delete_post(post_id):
 @app.route("/generate_v2", methods=["POST"])
 def generate_v2():
     if "dish" not in request.files:
-        return jsonify({"error": "Photo du plat manquante dans l'envoi."}), 400
+        return jsonify({"error": "Photo du plat manquante."}), 400
 
     dish_file = request.files["dish"]
     decor_name = request.form.get("decor", "salle")
@@ -172,6 +171,7 @@ def generate_v2():
         return jsonify({"error": f"Crash global : {str(e)}"}), 500
 
 
+# REPARÉ : Routage précis vers le Jeton de la Page Pro
 @app.route("/publish_to_socials", methods=["POST"])
 def publish_to_socials():
     data = request.get_json()
@@ -179,21 +179,38 @@ def publish_to_socials():
         return jsonify({"success": False, "error": "Données invalides"}), 400
     caption_fb = data.get("caption_fb", "")
     if not META_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "META_ACCESS_TOKEN non configuré."}), 400
+        return jsonify({"success": False, "error": "META_ACCESS_TOKEN manquant."}), 400
     image_path = UPLOAD_FOLDER / "last_output.jpg"
     if not image_path.exists():
         return jsonify({"success": False, "error": "Image introuvable."}), 400
+    
     try:
         page_url = "https://graph.facebook.com/v25.0/me/accounts"
         page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}, timeout=10).json()
-        page_id = page_res["data"][0].get("id") if "data" in page_res and page_res["data"] else "me"
+        
+        if "error" in page_res:
+            return jsonify({"success": False, "error": f"Meta clé refusée : {page_res['error'].get('message')}"}), 500
+            
+        if not page_res.get("data") or len(page_res["data"]) == 0:
+            return jsonify({
+                "success": False, 
+                "error": "Aucune Page Pro détectée. Ton jeton n'a pas coché l'autorisation 'pages_show_list' sur Meta Developers."
+            }), 400
+            
+        # Extraction chirurgicale : ID de la page ET son jeton d'accès pro dédié
+        page_id = page_res["data"][0]["id"]
+        page_token = page_res["data"][0]["access_token"]
+        
         fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
-        payload_fb = {'message': caption_fb, 'access_token': META_ACCESS_TOKEN}
+        payload_fb = {'message': caption_fb, 'access_token': page_token}
+        
         with open(str(image_path), 'rb') as img_file:
             files = {'source': ('post.jpg', img_file, 'image/jpeg')}
             res_fb = requests.post(fb_endpoint, data=payload_fb, files=files, timeout=20).json()
+            
         if "error" in res_fb:
             return jsonify({"success": False, "error": res_fb["error"].get("message")}), 500
+            
         return jsonify({"success": True, "message": "Publié avec succès !"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
