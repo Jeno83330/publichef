@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
+app.py — Interface web PubliChef V2 (Version Production Finale — Stabilisée & Auto-Correction Historique)
 """
 
 import os
@@ -20,6 +20,9 @@ load_dotenv()
 app = Flask(__name__)
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+# SÉCURISATION HISTORIQUE : Force la création des dossiers requis s'ils ont été purgés par Render
+Path("history").mkdir(exist_ok=True)
 
 # Récupération du Token Meta stocké dans les variables d'environnement sur Render
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
@@ -46,17 +49,20 @@ def index():
 
 @app.route("/history_data")
 def history_data():
-    from history_manager import get_all_posts
-    posts = get_all_posts()
-    result = []
-    for post in posts:
-        img_path = Path(post["image"])
-        if img_path.exists():
-            with open(img_path, "rb") as f:
-                img_b64 = base64.b64encode(f.read()).decode("utf-8")
-            post["image_data"] = f"data:image/jpeg;base64,{img_b64}"
-        result.append(post)
-    return jsonify(result)
+    try:
+        from history_manager import get_all_posts
+        posts = get_all_posts()
+        result = []
+        for post in posts:
+            img_path = Path(post["image"])
+            if img_path.exists():
+                with open(img_path, "rb") as f:
+                    img_b64 = base64.b64encode(f.read()).decode("utf-8")
+                post["image_data"] = f"data:image/jpeg;base64,{img_b64}"
+            result.append(post)
+        return jsonify(result)
+    except Exception:
+        return jsonify([])
 
 
 @app.route("/delete_post/<post_id>", methods=["DELETE"])
@@ -79,28 +85,27 @@ def generate_v2():
     dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
-    dish_file.stream.seek(0)
-    with open(str(dish_raw), "wb") as f:
-        f.write(dish_file.stream.read())
-    
-    # Création d'une image HD allégée en poids mais ultra-nette pour la fusion et l'IA
-    resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
-    shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
-
-    saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-    if "environment" in request.files and request.files["environment"].filename != '':
-        env_file = request.files["environment"]
-        env_raw = UPLOAD_FOLDER / "env_raw"
-        env_file.stream.seek(0)
-        with open(str(env_raw), "wb") as f:
-            f.write(env_file.stream.read())
-        resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
-    elif saved_decor_path.exists():
-        shutil.copy(str(saved_decor_path), str(env_jpg))
-    else:
-        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
-
     try:
+        dish_file.stream.seek(0)
+        with open(str(dish_raw), "wb") as f:
+            f.write(dish_file.stream.read())
+        
+        resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
+        shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
+
+        saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+        if "environment" in request.files and request.files["environment"].filename != '':
+            env_file = request.files["environment"]
+            env_raw = UPLOAD_FOLDER / "env_raw"
+            env_file.stream.seek(0)
+            with open(str(env_raw), "wb") as f:
+                f.write(env_file.stream.read())
+            resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
+        elif saved_decor_path.exists():
+            shutil.copy(str(saved_decor_path), str(env_jpg))
+        else:
+            return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
@@ -128,9 +133,6 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # SÉCURISATION MÉMOIRE : On envoie l'image HD optimisée f_enhanced à l'IA.
-        # Fini le fichier brut de 10Mo qui sature la RAM, place à un fichier de 500Ko ultra-net
-        # avec tous les détails des fibres de la viande visibles pour éviter la confusion Magret / Boeuf.
         with open(str(dish_enhanced_jpg), "rb") as f_enhanced:
             dish_raw_b64 = base64.b64encode(f_enhanced.read()).decode("utf-8")
 
@@ -146,8 +148,12 @@ def generate_v2():
         del ai
         gc.collect()
 
-        from history_manager import save_post
-        save_post(composed_path, description, "", facebook_final, "")
+        # Enregistrement sécurisé
+        try:
+            from history_manager import save_post
+            save_post(composed_path, description, "", facebook_final, "")
+        except Exception as e_hist:
+            print(f"[WARN HISTORIQUE] Sauvegarde locale impossible mais génération ok : {str(e_hist)}")
 
         return jsonify({
             "success": True,
