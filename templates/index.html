@@ -501,6 +501,7 @@
     </div>
 </header>
 
+<div class="generating-badge" id="generatingBadge"><div class="badge-dot"></div>Generation en cours...</div>
 <div class="main-content">
     <div class="screen active" id="screen-capture">
         <div class="screen-title">Créez votre post</div>
@@ -620,7 +621,7 @@
 </nav>
 
 <script>
-    let dishFile = null, selectedDecor = 'salle';
+    let dishFile = null, isGenerating = false, selectedDecor = 'salle';
     let savedDecors = {};
     let modifyingDecor = null;
     let currentHistoryPost = null;
@@ -853,7 +854,7 @@
         document.getElementById(`screen-${name}`).classList.add('active');
     }
 
-    function goCapture() { showScreen('capture'); setActiveNav(0); }
+    function goCapture() { if(isGenerating){showScreen('loading');setActiveNav(-1);return;} showScreen('capture'); setActiveNav(0); }
     function goHistory() { showScreen('history'); setActiveNav(1); loadHistory(); }
     function setActiveNav(idx) {
         document.querySelectorAll('.nav-btn').forEach((b, i) => {
