@@ -227,11 +227,9 @@ def save_decor_route(decor_name):
     file = request.files["image"]
     raw_path = UPLOAD_FOLDER / f"decor_{decor_name}_raw"
     jpg_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-
     file.stream.seek(0)
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
-
     resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1000, 1000))
     return sync_decors_response()
 
