@@ -621,7 +621,7 @@
 </nav>
 
 <script>
-    let dishFile = null, isGenerating = false, selectedDecor = 'salle';
+    let dishFile = null, envFile = null, isGenerating = false, selectedDecor = 'salle';
     let savedDecors = {};
     let modifyingDecor = null;
     let currentHistoryPost = null;
@@ -658,6 +658,20 @@
             loadSavedDecors();
         } catch (e) {}
         this.value = '';
+    });
+
+    document.getElementById('envInput').addEventListener('change', function() {
+        if (this.files[0]) {
+            envFile = this.files[0];
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('envPreview').src = e.target.result;
+                document.getElementById('envPreview').style.display = 'block';
+                document.getElementById('envPlaceholder').style.display = 'none';
+                document.getElementById('envCard').style.borderColor = 'var(--gold)';
+            };
+            reader.readAsDataURL(envFile);
+        }
     });
 
     document.getElementById('dishInput').addEventListener('change', function() {
@@ -712,6 +726,7 @@
 
         const formData = new FormData();
         formData.append('dish', dishFile);
+        if (envFile) { formData.append('environment', envFile); }
         formData.append('decor', selectedDecor);
         
         setTimeout(() => {
