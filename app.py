@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Finale — Stabilisée & Auto-Correction Historique)
+app.py — Interface web PubliChef V2 (Version Production Pro — Retour Version Stable Origine)
 """
 
 import os
@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageOps
 
 load_dotenv()
 
@@ -21,25 +21,56 @@ app = Flask(__name__)
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
-# SÉCURISATION HISTORIQUE : Force la création des dossiers requis s'ils ont été purgés par Render
-Path("history").mkdir(exist_ok=True)
-
 # Récupération du Token Meta stocké dans les variables d'environnement sur Render
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 
 # Coordonnées officielles du restaurant pour insertion automatique
 PHONE_RESERVATION = "04 42 08 65 28"
 
-def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
-    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta ou la RAM."""
+def resize_and_convert_to_jpg(src, dst, max_size=(1200, 1200)):
+    """Allège l'image dès sa réception pour éviter l'explosion de la RAM sur Render."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
             im.thumbnail(max_size, Image.Resampling.LANCZOS)
-            im.save(str(dst), "JPEG", quality=92)
+            im.save(str(dst), "JPEG", quality=85)
     except Exception:
         shutil.copy(str(src), str(dst))
+
+class AdvancedFoodEnhancer:
+    """Moteur Culinaire Actif pour sublimer la photo de plat avant intégration."""
+    
+    @staticmethod
+    def enhance_culinary(image_input, image_output):
+        try:
+            with Image.open(str(image_input)) as im:
+                if im.mode != "RGB":
+                    im = im.convert("RGB")
+                
+                # --- Étape 1 : Saturation Culinaire ---
+                enhancer_sat = ImageEnhance.Color(im)
+                im = enhancer_sat.enhance = im
+                
+                # --- Étape 2 : Relief & Contraste ---
+                enhancer_con = ImageEnhance.Contrast(im)
+                im = enhancer_con.enhance(1.2)
+                
+                # --- Étape 3 : Brillance ---
+                im = ImageOps.autocontrast(im, cutoff=0.5)
+                enhancer_bri = ImageEnhance.Brightness(im)
+                im = enhancer_bri.enhance(1.1)
+                
+                # --- Étape 4 : Netteté ---
+                enhancer_sha = ImageEnhance.Sharpness(im)
+                im = enhancer_sha.enhance(1.3)
+                
+                im.save(str(image_output), "JPEG", quality=90)
+                return True
+        except Exception as e:
+            print(f"[ERROR CULINARY ENHANCER] : {str(e)}")
+            shutil.copy(str(image_input), str(image_output))
+            return False
 
 
 @app.route("/")
@@ -49,20 +80,17 @@ def index():
 
 @app.route("/history_data")
 def history_data():
-    try:
-        from history_manager import get_all_posts
-        posts = get_all_posts()
-        result = []
-        for post in posts:
-            img_path = Path(post["image"])
-            if img_path.exists():
-                with open(img_path, "rb") as f:
-                    img_b64 = base64.b64encode(f.read()).decode("utf-8")
-                post["image_data"] = f"data:image/jpeg;base64,{img_b64}"
-            result.append(post)
-        return jsonify(result)
-    except Exception:
-        return jsonify([])
+    from history_manager import get_all_posts
+    posts = get_all_posts()
+    result = []
+    for post in posts:
+        img_path = Path(post["image"])
+        if img_path.exists():
+            with open(img_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode("utf-8")
+            post["image_data"] = f"data:image/jpeg;base64,{img_b64}"
+        result.append(post)
+    return jsonify(result)
 
 
 @app.route("/delete_post/<post_id>", methods=["DELETE"])
@@ -85,27 +113,27 @@ def generate_v2():
     dish_enhanced_jpg = UPLOAD_FOLDER / "dish_enhanced.jpg" 
     env_jpg = UPLOAD_FOLDER / "env.jpg"
 
+    dish_file.stream.seek(0)
+    with open(str(dish_raw), "wb") as f:
+        f.write(dish_file.stream.read())
+    resize_and_convert_to_jpg(dish_raw, dish_jpg)
+
+    AdvancedFoodEnhancer.enhance_culinary(dish_jpg, dish_enhanced_jpg)
+
+    saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
+    if "environment" in request.files and request.files["environment"].filename != '':
+        env_file = request.files["environment"]
+        env_raw = UPLOAD_FOLDER / "env_raw"
+        env_file.stream.seek(0)
+        with open(str(env_raw), "wb") as f:
+            f.write(env_file.stream.read())
+        resize_and_convert_to_jpg(env_raw, env_jpg)
+    elif saved_decor_path.exists():
+        shutil.copy(str(saved_decor_path), str(env_jpg))
+    else:
+        return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
+
     try:
-        dish_file.stream.seek(0)
-        with open(str(dish_raw), "wb") as f:
-            f.write(dish_file.stream.read())
-        
-        resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
-        shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
-
-        saved_decor_path = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
-        if "environment" in request.files and request.files["environment"].filename != '':
-            env_file = request.files["environment"]
-            env_raw = UPLOAD_FOLDER / "env_raw"
-            env_file.stream.seek(0)
-            with open(str(env_raw), "wb") as f:
-                f.write(env_file.stream.read())
-            resize_and_convert_to_jpg(env_raw, env_jpg, max_size=(1440, 1440))
-        elif saved_decor_path.exists():
-            shutil.copy(str(saved_decor_path), str(env_jpg))
-        else:
-            return jsonify({"error": f"Aucun décor trouvé pour '{decor_name}'."}), 400
-
         from gemini_engine import GeminiEngine
         from ai_engine import AIEngine
 
@@ -118,11 +146,8 @@ def generate_v2():
         with Image.open(composed_path) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            
-            img.thumbnail((1440, 1440), Image.Resampling.LANCZOS)
-            
             buffer = io.BytesIO()
-            img.save(buffer, format="JPEG", quality=92)
+            img.save(buffer, format="JPEG", quality=85)
             compressed = buffer.getvalue()
 
         last_output = UPLOAD_FOLDER / "last_output.jpg"
@@ -133,27 +158,26 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        with open(str(dish_enhanced_jpg), "rb") as f_enhanced:
-            dish_raw_b64 = base64.b64encode(f_enhanced.read()).decode("utf-8")
+        with open(str(UPLOAD_FOLDER / "dish.jpg"), "rb") as f_raw:
+            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
 
         ai = AIEngine()
         description = ai.describe_dish_from_bytes(dish_raw_b64)
         facebook = ai.generate_facebook_caption(description)
         hashtags = ai.generate_hashtags(description)
         
+        # NETTOYAGE RADICAL DES DOUBLONS DE TELEPHONE AVANT FUSION
         facebook_clean = facebook.replace("[TELEPHONE]", "").replace("TELEPHONE", "").strip()
         facebook_clean = facebook_clean.replace("Réservations :", "").replace("Réservation :", "").strip()
+        
+        # Reconstruction propre de la légende unifiée unique
         facebook_final = f"{facebook_clean}\n\n📞 Réservation : {PHONE_RESERVATION}\n\n{hashtags}"
         
         del ai
         gc.collect()
 
-        # Enregistrement sécurisé
-        try:
-            from history_manager import save_post
-            save_post(composed_path, description, "", facebook_final, "")
-        except Exception as e_hist:
-            print(f"[WARN HISTORIQUE] Sauvegarde locale impossible mais génération ok : {str(e_hist)}")
+        from history_manager import save_post
+        save_post(composed_path, description, "", facebook_final, "")
 
         return jsonify({
             "success": True,
@@ -185,10 +209,6 @@ def publish_to_socials():
     try:
         page_url = f"https://graph.facebook.com/v25.0/me/accounts"
         page_res = requests.get(page_url, params={'access_token': META_ACCESS_TOKEN}).json()
-        
-        if "error" in page_res:
-            return jsonify({"success": False, "error": "Meta Auth: " + page_res["error"].get("message")}), 500
-
         page_id = page_res["data"][0].get("id") if "data" in page_res and len(page_res["data"]) > 0 else "me"
         
         fb_endpoint = f"https://graph.facebook.com/v25.0/{page_id}/photos"
@@ -231,12 +251,13 @@ def save_decor_route(decor_name):
     with open(str(raw_path), "wb") as f:
         f.write(file.stream.read())
         
-    resize_and_convert_to_jpg(raw_path, jpg_path, max_size=(1440, 1440))
+    resize_and_convert_to_jpg(raw_path, jpg_path)
     return sync_decors_response()
 
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
+    # LA SEULE CORRECTION APPLIQUÉE : name remplacé par la variable decor_name reçue par la route
     p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
@@ -267,36 +288,13 @@ def connect_meta_auto():
     return f'''
     <!DOCTYPE html>
     <html>
-    <head>
-        <title>Configuration Réseaux PubliChef</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family:sans-serif; text-align:center; padding-top:60px; background-color:#0A0A0F; color:#ffffff; padding-inline:20px;">
-        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#13131A; border: 1px solid rgba(255,255,255,0.08); border-radius:24px;">
-            <h2 style="color:#F5C842; margin-bottom:15px;">🔑 Liaison PubliChef Pro</h2>
-            <p style="color:#aaa; font-size:14px; margin-bottom:35px; line-height:1.5;">Cliquez sur le bouton bleu. Votre jeton permanent apparaîtra automatiquement ci-dessous.</p>
-            
-            <a href="{meta_url}" style="display:inline-block; background: linear-gradient(135deg, #0084ff 0%, #0052cc 100%); color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:12px; font-weight:bold; margin-bottom:20px;">🔵 LIER LA PAGE FACEBOOK</a>
-            
-            <div id="token-display" style="display:none; margin-top:30px; padding:20px; background:rgba(255,255,255,0.04); border-radius:12px; border:1px dashed rgba(245,200,66,0.3);">
-                <p style="color:#34C759; font-weight:bold; margin-bottom:10px;">✅ JETON RECONNU AVEC SUCCÈS :</p>
-                <textarea id="token-text" readonly style="width:100%; height:120px; background:#000; color:#FFE08A; border:1px solid #333; border-radius:8px; padding:10px; font-family:monospace; font-size:12px; box-sizing:border-box; resize:none;"></textarea>
-                <p style="font-size:12px; color:#8E8E93; margin-top:10px;">Copiez ce texte et collez-le dans META_ACCESS_TOKEN sur Render.</p>
-            </div>
+    <head><title>Configuration Réseaux PubliChef</title><meta charset="utf-8"></head>
+    <body style="font-family:sans-serif; text-align:center; padding-top:120px; background-color:#121212; color:#ffffff;">
+        <div style="max-width:500px; margin:0 auto; padding:40px 30px; background:#1e1e1e; border-radius:12px;">
+            <h2>🔑 Liaison PubliChef Pro</h2>
+            <p style="color:#aaa; font-size:14px; margin-bottom:35px;">Configuration pour le cross-posting. Liez votre page Facebook.</p>
+            <a href="{meta_url}" style="display:inline-block; background-color:#0084ff; color:#ffffff; padding:16px 36px; text-decoration:none; border-radius:8px; font-weight:bold;">🔵 LIER LA PAGE FACEBOOK</a>
         </div>
-
-        <script>
-            const hash = window.location.hash;
-            if (hash) {{
-                const params = new URLSearchParams(hash.replace('#', '?'));
-                const token = params.get('access_token');
-                if (token) {{
-                    document.getElementById('token-display').style.display = 'block';
-                    document.getElementById('token-text').value = token;
-                }}
-            }}
-        </script>
     </body>
     </html>
     '''
