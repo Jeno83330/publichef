@@ -5,4 +5,5 @@ google-genai
 Pillow
 requests
 replicate
-numpy
+numpygunicorn==21.2.0
+gunicorn==21.2.0
