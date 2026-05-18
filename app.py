@@ -66,14 +66,9 @@ def save_decor_route(decor_name):
 
 @app.route("/generate_v2", methods=["POST"])
 def generate_v2():
-    dish_file_key = None
-    for key in request.files.keys():
-        if key != "environment":
-            dish_file_key = key
-            break
-
-    if not dish_file_key:
-        return jsonify({"error": "Photo du plat manquante dans la requete."}), 200
+    if "dish" not in request.files:
+        return jsonify({"error": "Photo du plat manquante dans la requete."}), 400
+    dish_file_key = "dish"
 
     decor_name = request.form.get("decor", request.form.get("decor_type", "salle"))
     dish_raw = UPLOAD_FOLDER / "dish_raw"
