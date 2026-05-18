@@ -2,5 +2,5 @@ flask
 pillow
 requests
 python-dotenv
-google-generativeai
+google-genai
 gunicorn==21.2.0
