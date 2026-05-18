@@ -1,5 +1,5 @@
 """
-app.py — Interface web PubliChef V2 (Version Production Finale — Stabilisée & Corrigée)
+app.py — Interface web PubliChef V2 (Version Production Pro — Cross-Posting & Reconnaissance Brute)
 """
 
 import os
@@ -28,7 +28,7 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_RESERVATION = "04 42 08 65 28"
 
 def resize_and_convert_to_jpg(src, dst, max_size=(1440, 1440)):
-    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta."""
+    """Ajuste l'image au format HD optimal pour préserver le piqué sans saturer l'API Meta ou la RAM."""
     try:
         with Image.open(str(src)) as im:
             if im.mode != "RGB":
@@ -82,7 +82,8 @@ def generate_v2():
     dish_file.stream.seek(0)
     with open(str(dish_raw), "wb") as f:
         f.write(dish_file.stream.read())
-        
+    
+    # Création d'une image HD allégée en poids mais ultra-nette pour la fusion et l'IA
     resize_and_convert_to_jpg(dish_raw, dish_jpg, max_size=(1440, 1440))
     shutil.copy(str(dish_jpg), str(dish_enhanced_jpg))
 
@@ -127,9 +128,11 @@ def generate_v2():
         del compressed
         gc.collect()
 
-        # RECONNAISSANCE BRUTE : On lit le fichier d'origine de l'iPhone pour éviter toute confusion (Magret / Boeuf)
-        with open(str(dish_raw), "rb") as f_raw:
-            dish_raw_b64 = base64.b64encode(f_raw.read()).decode("utf-8")
+        # SÉCURISATION MÉMOIRE : On envoie l'image HD optimisée f_enhanced à l'IA.
+        # Fini le fichier brut de 10Mo qui sature la RAM, place à un fichier de 500Ko ultra-net
+        # avec tous les détails des fibres de la viande visibles pour éviter la confusion Magret / Boeuf.
+        with open(str(dish_enhanced_jpg), "rb") as f_enhanced:
+            dish_raw_b64 = base64.b64encode(f_enhanced.read()).decode("utf-8")
 
         ai = AIEngine()
         description = ai.describe_dish_from_bytes(dish_raw_b64)
@@ -228,7 +231,6 @@ def save_decor_route(decor_name):
 
 @app.route("/delete_decor/<decor_name>", methods=["DELETE"])
 def delete_decor_route(decor_name):
-    # CORRECTION : p utilise désormais la variable d'entrée decor_name
     p = UPLOAD_FOLDER / f"decor_{decor_name}.jpg"
     if p.exists():
         p.unlink()
