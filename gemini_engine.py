@@ -62,14 +62,29 @@ class GeminiEngine:
             )
 
             # Un seul appel API au lieu de deux : gain de vitesse massif et économie de RAM
-            response = self.client.models.generate_content(
-                model="gemini-3-pro-image-preview",
-                contents=[compose_prompt, dish_img, env_img],
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE", "TEXT"],
-                    temperature=0.4
+            try:
+                response = self.client.models.generate_content(
+                    model="gemini-3-pro-image-preview",
+                    contents=[compose_prompt, dish_img, env_img],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE", "TEXT"],
+                        temperature=0.4
+                    )
                 )
-            )
+                print("[GEMINI] Modele: gemini-3-pro-image-preview")
+            except Exception as e:
+                if any(x in str(e) for x in ["503", "UNAVAILABLE", "high demand", "overloaded"]):
+                    print("[GEMINI] Fallback sur gemini-2.5-flash-image")
+                    response = self.client.models.generate_content(
+                        model="gemini-2.5-flash-image",
+                        contents=[compose_prompt, dish_img, env_img],
+                        config=types.GenerateContentConfig(
+                            response_modalities=["IMAGE", "TEXT"],
+                            temperature=0.4
+                        )
+                    )
+                else:
+                    raise
 
         # Extraction et sauvegarde de l'image finale renvoyée par Gemini
         for part in response.candidates[0].content.parts:
