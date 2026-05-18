@@ -1,103 +1,63 @@
-"""
-gemini_engine.py — Version optimisée pour PubliChef (Insertion géométrique réelle)
-"""
-
 import os
-import io
-from pathlib import Path
-from PIL import Image
-from google import genai
-from google.genai import types
-
+import google.generativeai as genai
 
 class GeminiEngine:
-
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError("GEMINI_API_KEY missing from .env")
-        self.client = genai.Client(api_key=api_key)
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        # Même logique : modèle principal lourd vs modèle flash rapide
+        self.primary_model = "gemini-1.5-pro"
+        self.backup_model = "gemini-2.5-flash"
 
-    def compose_dish_in_environment(
-        self,
-        dish_path: Path,
-        environment_path: Path,
-    ) -> Path:
+    def compose_dish_in_environment(self, dish_path, env_path):
+        """Détoure le plat et l'intègre dans le décor avec bascule automatique."""
+        from PIL import Image
+        import io
 
-        output_dir = dish_path.parent.parent / "composed"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"final_{dish_path.stem}.jpg"
+        # Lecture des images pour l'API
+        with open(str(dish_path), "rb") as f:
+            dish_data = f.read()
+        with open(str(env_path), "rb") as f:
+            env_data = f.read()
 
-        # Ouverture des images avec un gestionnaire de contexte pour libérer la RAM immédiatement après
-        with Image.open(dish_path) as dish_img, Image.open(environment_path) as env_img:
-            if dish_img.mode != "RGBA":
-                dish_img = dish_img.convert("RGBA")
-            if env_img.mode != "RGB":
-                env_img = env_img.convert("RGB")
+        prompt = (
+            "Prends le plat de la première image, détoure-le proprement sans résidu, "
+            "et place-le de manière réaliste au centre sur la table de la deuxième image. "
+            "Ajuste l'ombre sous l'assiette et la perspective à 45 degrés pour une intégration parfaite. "
+            "Renvoie uniquement l'image finale combinée au format JPEG."
+        )
 
-            # Redimensionnement préventif à 1024x1024 max pour éviter les crashs RAM sur Render (512MB)
-            MAX_SIZE = (1024, 1024)
-            dish_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
-            env_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
+        contents = [
+            {"mime_type": "image/jpeg", "data": dish_data},
+            {"mime_type": "image/jpeg", "data": env_data},
+            prompt
+        ]
 
-            # PROMPT OPTIMISÉ : Focus absolu sur la géométrie, l'échelle et l'ancrage au sol
-            compose_prompt = (
-                "You are an expert digital compositor and professional food photographer. "
-                "I have provided two images: 1) A main dish plate, and 2) A restaurant environment background. "
-                "YOUR MISSION: Insert the dish into the environment photo with perfect geometric and physical realism. "
-                
-                "1. GEOMETRY & SCALE: Analyze the perspective, tilt, and orientation of the wooden table surface in the background. "
-                "Resize, rotate, and skew the plate so its angle matches the table's plane perfectly. "
-                "The plate must look like it is physically resting flat ON the table, not hovering or sliding. "
-                
-                "2. LIGHTING & BLENDING: Match the warm, golden ambient lighting of the restaurant. "
-                "Synthesize realistic, soft contact shadows (ambient occlusion) directly underneath and around the base of the plate "
-                "where it touches the wood. The edges of the plate must blend smoothly with the environment background textures. "
-                
-                "3. QUALITY & ENHANCEMENT: Enhance the crispness and rich textures of the food (glistening meat, vibrant garnishes) "
-                "while maintaining a professional shallow depth of field (sharp dish, soft bokeh background). "
-                "Do not change the food's identity; make it look highly appetizing. "
-                
-                "Return ONLY the final composited JPEG image."
-            )
-
-            # Un seul appel API au lieu de deux : gain de vitesse massif et économie de RAM
-            try:
-                response = self.client.models.generate_content(
-                    model="gemini-3-pro-image-preview",
-                    contents=[compose_prompt, dish_img, env_img],
-                    config=types.GenerateContentConfig(
-                        response_modalities=["IMAGE", "TEXT"],
-                        temperature=0.4
-                    )
-                )
-                print("[GEMINI] Modele: gemini-3-pro-image-preview")
-            except Exception as e:
-                if any(x in str(e) for x in ["503", "UNAVAILABLE", "high demand", "overloaded"]):
-                    print("[GEMINI] Fallback sur gemini-2.5-flash-image")
-                    response = self.client.models.generate_content(
-                        model="gemini-2.5-flash-image",
-                        contents=[compose_prompt, dish_img, env_img],
-                        config=types.GenerateContentConfig(
-                            response_modalities=["IMAGE", "TEXT"],
-                            temperature=0.4
-                        )
-                    )
-                else:
-                    raise
-
-        # Extraction et sauvegarde de l'image finale renvoyée par Gemini
-        for part in response.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.data:
-                # Utilisation de BytesIO pour traiter l'image en RAM sans fichier PNG temporaire sur Render
-                input_buffer = io.BytesIO(part.inline_data.data)
-                
-                with Image.open(input_buffer) as img:
-                    if img.mode != "RGB":
-                        img = img.convert("RGB")
-                    # Sauvegarde directe au format JPEG avec une qualité optimisée pour le Web
-                    img.save(output_path, "JPEG", quality=90)
-                    
-                return output_path
-
-        raise Exception("Gemini did not return an image")
+        # --- TENTATIVE 1 : MODÈLE PRO ---
+        try:
+            print(f"[IMAGE ENGINE] Essai modèle principal : {self.primary_model}")
+            model = genai.GenerativeModel(model_name=self.primary_model)
+            response = model.generate_content(contents, request_options={"timeout": 12})
+            
+            # Recherche de l'image dans la réponse
+            for part in response.candidates[0].content.parts:
+                if part.inline_data and part.inline_data.data:
+                    output_path = os.path.dirname(dish_path) + "/last_composed.jpg"
+                    with open(output_path, "wb") as f_out:
+                        f_out.write(part.inline_data.data)
+                    return output_path
+            raise Exception("Pas de fichier image brut retourné par le modèle principal.")
+            
+        except Exception as e:
+            print(f"[WARN IMAGE ENGINE] Échec modèle principal : {str(e)}. Bascule Flash immédiate.")
+            
+            # --- TENTATIVE 2 : BASCULE FLASH ---
+            model_backup = genai.GenerativeModel(model_name=self.backup_model)
+            response_backup = model_backup.generate_content(contents, request_options={"timeout": 12})
+            
+            for part in response_backup.candidates[0].content.parts:
+                if part.inline_data and part.inline_data.data:
+                    output_path = os.path.dirname(dish_path) + "/last_composed.jpg"
+                    with open(output_path, "wb") as f_out:
+                        f_out.write(part.inline_data.data)
+                    return output_path
+            raise Exception("Échec critique : aucun des deux modèles n'a pu générer l'image.")
