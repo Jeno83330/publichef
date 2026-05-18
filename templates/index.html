@@ -3,511 +3,482 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PubliChef — Assistant Culinaire Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>PubliChef - Assistant IA</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg: #0A0A0F; --card: #13131A; --border: rgba(255,255,255,0.08);
-            --gold: #F5C842; --gold-light: #FFE08A;
-            --gold-gradient: linear-gradient(135deg, #F5C842 0%, #D4AF37 100%);
-            --white: #FFFFFF; --gray: #8E8E93; --gray-light: #AEAEB2;
-            --success: #34C759; --error: #FF3B30; --nav-bg: #13131A;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent-gold: #d4af37;
+            --text-color: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border-color: #333333;
         }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--white); min-height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; }
-        header { padding:16px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:#0A0A0F; height:70px; position:sticky; top:0; z-index:100; }
-        .logo img { height:42px; width:auto; border-radius:10px; display:block; }
-        .step-indicator { display:flex; gap:8px; align-items:center; }
-        .step-dot { width:8px; height:8px; border-radius:50%; background:var(--border); transition:all 0.4s; }
-        .step-dot.active { background:var(--gold); width:24px; border-radius:4px; }
-        .step-dot.done { background:var(--success); }
-        .generating-badge { position:fixed; top:78px; left:50%; transform:translateX(-50%); background:rgba(245,200,66,0.15); border:1px solid rgba(245,200,66,0.4); color:var(--gold); padding:8px 18px; border-radius:50px; font-size:13px; font-weight:600; display:none; z-index:150; white-space:nowrap; }
-        .generating-badge.visible { display:flex; align-items:center; gap:8px; }
-        .badge-dot { width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulsebadge 1s infinite; }
-        @keyframes pulsebadge { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .main-content { flex:1; display:flex; flex-direction:column; }
-        .screen { display:none; padding:24px 24px 100px; flex-direction:column; flex:1; animation:fadeIn 0.4s ease-out; }
-        .screen.active { display:flex; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        .screen-title { font-family:'Playfair Display',serif; font-size:28px; font-weight:700; margin-bottom:8px; }
-        .screen-subtitle { color:var(--gray); font-size:14px; margin-bottom:32px; line-height:1.5; }
-        .upload-card { background:var(--card); border:1.5px dashed var(--border); border-radius:24px; padding:36px 24px; text-align:center; cursor:pointer; position:relative; overflow:hidden; margin-bottom:24px; }
-        .upload-card.has-image { border-color:var(--gold); border-style:solid; padding:12px; }
-        .upload-card input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:10; }
-        .upload-preview { width:100%; height:220px; object-fit:cover; border-radius:16px; display:none; }
-        .upload-card.has-image .upload-preview { display:block; }
-        .upload-card.has-image .upload-placeholder { display:none; }
-        .upload-icon { font-size:44px; margin-bottom:14px; display:block; }
-        .upload-label { font-size:16px; font-weight:600; margin-bottom:6px; }
-        .upload-hint { font-size:13px; color:var(--gray); }
-        .upload-badge { position:absolute; top:12px; right:12px; background:var(--gold); color:#000; font-size:11px; font-weight:600; padding:3px 8px; border-radius:50px; }
-        .decor-section { margin-bottom:24px; }
-        .section-label { font-size:12px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:14px; }
-        .decor-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
-        .decor-option { background:var(--card); border:2px solid var(--border); border-radius:20px; padding:16px; text-align:center; cursor:pointer; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:120px; }
-        .decor-option.selected { border-color:var(--gold); background:rgba(245,200,62,0.04); }
-        .decor-option .decor-icon { font-size:32px; margin-bottom:8px; }
-        .decor-option .decor-name { font-size:14px; font-weight:600; }
-        .decor-option.locked { opacity:0.35; cursor:not-allowed; }
-        .decor-modify-btn { background:rgba(245,200,66,0.12); border:1px solid rgba(245,200,66,0.3); color:var(--gold); padding:5px 12px; border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; margin-top:8px; width:90%; position:relative; z-index:15; }
-        .btn-primary { background:var(--gold-gradient); color:#000; border:none; padding:18px; border-radius:18px; font-size:16px; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 16px rgba(245,200,66,0.15); margin-top:auto; }
-        .btn-primary:disabled { opacity:0.35; cursor:not-allowed; box-shadow:none; }
-        .btn-secondary { background:transparent; color:var(--gray-light); border:1px solid var(--border); padding:16px; border-radius:18px; font-size:15px; font-weight:600; cursor:pointer; width:100%; margin-top:12px; }
-        .loading-container { background:var(--card); padding:40px 30px; border-radius:28px; border:1px solid var(--border); width:100%; margin:auto 0; }
-        .loading-ring { width:72px; height:72px; border:3.5px solid rgba(245,200,66,0.1); border-top-color:var(--gold); border-radius:50%; animation:spin 0.9s linear infinite; margin:0 auto 28px; }
-        @keyframes spin { to{transform:rotate(360deg)} }
-        .loading-title { font-family:'Playfair Display',serif; font-size:24px; font-weight:700; margin-bottom:12px; text-align:center; }
-        .loading-desc { color:var(--gold); font-size:15px; margin-bottom:28px; font-weight:600; min-height:22px; text-align:center; }
-        .progress-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.04); border-radius:100px; overflow:hidden; }
-        .progress-bar { width:0%; height:100%; background:linear-gradient(90deg,var(--gold) 0%,#34C759 100%); border-radius:100px; transition:width 0.4s cubic-bezier(0.4,0,0.2,1); }
-        .result-image { width:100%; border-radius:24px; margin-bottom:24px; aspect-ratio:4/5; object-fit:cover; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
-        .result-image-container { position:relative; margin-bottom:16px; }
-        .download-btn { position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.2); color:white; padding:10px 16px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; }
-        .result-tabs { display:flex; background:var(--card); border-radius:14px; padding:4px; margin-bottom:20px; }
-        .result-tab { flex:1; padding:12px; color:var(--white); font-size:14px; font-weight:600; text-align:center; border-radius:10px; }
-        .result-tab.active { background:var(--gold); color:#000; }
-        .caption-box { background:var(--card); border-radius:20px; padding:20px; padding-bottom:75px; margin-bottom:16px; position:relative; border:1px solid var(--border); }
-        .caption-text { font-size:14.5px; line-height:1.65; color:rgba(255,255,255,0.9); white-space:pre-wrap; word-break:break-word; }
-        .caption-text[contenteditable="true"] { outline:1.5px solid var(--gold); background:rgba(0,0,0,0.25); border-radius:12px; padding:10px; }
-        .edit-btn,.copy-btn { position:absolute; bottom:18px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.2); color:var(--gold); padding:6px 16px; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer; z-index:10; }
-        .edit-btn { left:20px; } .edit-btn.editing { background:var(--success); border-color:var(--success); color:white; }
-        .copy-btn { right:20px; } .copy-btn.copied { background:var(--success); border-color:var(--success); color:white; }
-        .error-container { background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3); border-radius:16px; padding:16px; color:#FF8781; font-size:14px; margin-bottom:16px; text-align:center; display:none; font-weight:600; }
-        .history-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-        .history-card { cursor:pointer; border-radius:18px; overflow:hidden; background:var(--card); border:1px solid var(--border); }
-        .history-card img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
-        .history-card-date { padding:10px 12px; font-size:12px; color:var(--gray); font-weight:500; }
-        nav { width:100%; background:var(--nav-bg); border-top:1px solid var(--border); display:flex; padding:16px 0 32px; margin-top:auto; }
-        .nav-btn { flex:1; background:none; border:none; font-size:24px; cursor:pointer; opacity:0.3; display:flex; align-items:center; justify-content:center; }
-        .nav-btn.active { opacity:1; color:var(--gold); }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 15px;
+            padding-bottom: 40px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-top: 10px;
+        }
+
+        .logo-container img {
+            max-height: 50px;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        h1 span {
+            color: var(--accent-gold);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .step-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent-gold);
+        }
+
+        .step-title span {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid var(--accent-gold);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        /* Styles Zones Upload / Selection */
+        .upload-box {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 25px 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            position: relative;
+        }
+
+        .upload-box:active, .upload-box.has-image {
+            border-color: var(--accent-gold);
+        }
+
+        .upload-box i {
+            font-size: 2rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .upload-box p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .preview-img {
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: none;
+            margin-top: 5px;
+        }
+
+        select {
+            width: 100%;
+            background-color: #262626;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+        }
+
+        .select-container {
+            position: relative;
+        }
+
+        .select-container::after {
+            content: '\f078';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            font-size: 0.8rem;
+        }
+
+        /* Bouton Principal */
+        .btn-generate {
+            width: 100%;
+            background: linear-gradient(135s, #d4af37, #aa8416);
+            color: #121212;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+            transition: transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-generate:disabled {
+            background: #444444;
+            color: var(--text-muted);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Barre de chargement moderne */
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .progress-bar-wrapper {
+            width: 100%;
+            background-color: #262626;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--accent-gold);
+            transition: width 0.4s ease;
+        }
+
+        .progress-status {
+            font-size: 0.85rem;
+            color: var(--accent-gold);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid #d32f2f;
+            color: #ef5350;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+
+        /* Résultats Écran Final */
+        #result-card {
+            display: none;
+        }
+
+        .result-image-box {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+            background-color: #000;
+        }
+
+        .result-image-box img {
+            width: 100%;
+            display: block;
+        }
+
+        .output-text-area {
+            background-color: #1a1a1a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .btn-copy {
+            background-color: #262626;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 10px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-copy:active {
+            background-color: #333333;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <div class="logo"><img src="/static/logo.png" alt="PubliChef"></div>
-    <div class="step-indicator">
-        <div class="step-dot active" id="dot1"></div>
-        <div class="step-dot" id="dot2"></div>
-        <div class="step-dot" id="dot3"></div>
-    </div>
-</header>
+<div class="container">
+    <header>
+        <div class="logo-container">
+            <img src="/static/logo.png" alt="PubliChef Logo" onerror="this.style.display='none'">
+        </div>
+        <h1>PubliChef <span>Studio</span></h1>
+    </header>
 
-<div class="generating-badge" id="generatingBadge"><div class="badge-dot"></div>Génération en cours...</div>
-
-<div class="main-content">
-
-    <!-- SCREEN CAPTURE -->
-    <div class="screen active" id="screen-capture">
-        <div class="screen-title">Créez votre post</div>
-        <div class="screen-subtitle">Photographiez votre plat et choisissez votre décor.</div>
-
-        <!-- Photo du plat -->
-        <div class="upload-card" id="dishCard">
-            <input type="file" id="dishInput" accept="image/*">
-            <img class="upload-preview" id="dishPreview" src="" alt="">
-            <div class="upload-placeholder">
-                <span class="upload-icon">📸</span>
-                <div class="upload-label">Photo du plat</div>
-                <div class="upload-hint">Pellicule ou appareil photo</div>
-            </div>
-            <span class="upload-badge">Étape 1</span>
+    <div class="card" id="input-card">
+        <div class="step-title"><span>1</span> Photo du Plat</div>
+        <div class="upload-box" id="drop-zone-dish" onclick="document.getElementById('file-dish').click()">
+            <i class="fas fa-utensils" id="icon-dish"></i>
+            <p id="text-dish">Prendre ou choisir le plat</p>
+            <img id="prev-dish" class="preview-img" alt="Aperçu plat">
+            <input type="file" id="file-dish" accept="image/*">
         </div>
 
-        <!-- Décors permanents -->
-        <div class="decor-section">
-            <div class="section-label">Sélection du décor permanent</div>
-            <div class="decor-grid" id="decorGrid">
-                <div class="decor-option selected" data-decor="salle" onclick="selectDecor(this)">
-                    <div id="decor-preview-salle" style="display:none;width:100%;">
-                        <img id="decor-img-salle" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
-                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Salle du restaurant</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Modifier</button>
-                    </div>
-                    <div id="decor-placeholder-salle">
-                        <span class="decor-icon">🏛️</span>
-                        <div class="decor-name">Salle du restaurant</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'salle')">Ajouter</button>
-                    </div>
-                </div>
-                <div class="decor-option" data-decor="terrasse" onclick="selectDecor(this)">
-                    <div id="decor-preview-terrasse" style="display:none;width:100%;">
-                        <img id="decor-img-terrasse" src="" alt="" style="width:100%;height:75px;object-fit:cover;border-radius:10px;margin-bottom:6px;">
-                        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Terrasse</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Modifier</button>
-                    </div>
-                    <div id="decor-placeholder-terrasse">
-                        <span class="decor-icon">🌿</span>
-                        <div class="decor-name">Terrasse</div>
-                        <button class="decor-modify-btn" onclick="modifyDecor(event,'terrasse')">Ajouter</button>
-                    </div>
-                </div>
-                <div class="decor-option locked">
-                    <span class="decor-icon">🔒</span>
-                    <div class="decor-name" style="color:var(--gray);">Bar / Comptoir</div>
-                </div>
-                <div class="decor-option locked">
-                    <span class="decor-icon">🔒</span>
-                    <div class="decor-name" style="color:var(--gray);">Décor personnalisé</div>
-                </div>
-            </div>
-            <input type="file" id="decorModifyInput" accept="image/*" style="display:none;">
+        <div style="height: 20px;"></div>
+
+        <div class="step-title"><span>2</span> Choix de l'Ambiance</div>
+        <div class="select-container">
+            <select id="decor-select">
+                <option value="salle">Ambiance Brasserie / Salle</option>
+                <option value="terrasse">Ambiance Terrasse Ensoleillée</option>
+            </select>
         </div>
 
-        <!-- Décor à la volée -->
-        <div class="upload-card" id="envCard" style="margin-bottom:24px;">
-            <input type="file" id="envInput" accept="image/*">
-            <img class="upload-preview" id="envPreview" src="" alt="">
-            <div class="upload-placeholder" id="envPlaceholder">
-                <span class="upload-icon">🏛️</span>
-                <div class="upload-label">Photo décor à la volée</div>
-                <div class="upload-hint">Optionnel — remplace le décor permanent</div>
-            </div>
-            <span class="upload-badge">Étape 2</span>
-        </div>
+        <div style="height: 25px;"></div>
 
-        <div class="error-container" id="errorBlock">Le serveur met du temps à répondre. Réessayez la génération.</div>
-        <button class="btn-primary" id="btnGenerate" onclick="startGeneration()" disabled>✨ Créer mon post</button>
-    </div>
-
-    <!-- SCREEN LOADING -->
-    <div class="screen" id="screen-loading">
-        <div class="loading-container">
-            <div class="loading-ring"></div>
-            <div class="loading-title">Sublimation Active...</div>
-            <div class="loading-desc" id="loadingPhaseText">Étape 1 : Amélioration des textures culinaires...</div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- SCREEN RESULT -->
-    <div class="screen" id="screen-result">
-        <div class="result-image-container">
-            <img class="result-image" id="resultImage" src="" alt="Post finalisé">
-            <button class="download-btn" onclick="downloadImage()">⬇️ Télécharger</button>
-        </div>
-        <div class="result-tabs">
-            <div class="result-tab active">Publication Unique (FB + Insta)</div>
-        </div>
-        <div class="caption-box">
-            <div class="caption-text" id="fbText"></div>
-            <button class="edit-btn" id="edit-fb" onclick="toggleEdit('fbText', this)">Modifier</button>
-            <button class="copy-btn" onclick="copyText('fbText', this)">Copier</button>
-        </div>
-        <button onclick="publishPost()" class="btn-primary" style="background:#25D366;color:#000;font-weight:700;box-shadow:0 4px 16px rgba(37,211,102,0.2);">
-            🚀 Publier en 1 clic
+        <button class="btn-generate" id="btn-submit" onclick="startGeneration()">
+            <i class="fas fa-magic"></i> Sublimer mon Plat
         </button>
-        <p id="publish-status" style="font-size:13.5px;text-align:center;margin-top:12px;font-weight:600;"></p>
-        <button class="btn-secondary" onclick="resetApp()">📸 Faire un nouveau post</button>
-    </div>
 
-    <!-- SCREEN HISTORY -->
-    <div class="screen" id="screen-history">
-        <div class="screen-title" style="margin-bottom:24px;">Historique des créations</div>
-        <div id="historyGrid" class="history-grid"></div>
-        <div id="historyDetail" style="display:none;">
-            <button class="btn-secondary" onclick="closeHistDetail()" style="margin-bottom:20px;padding:12px;">← Retour</button>
-            <div class="result-image-container" style="margin-bottom:16px;">
-                <img id="histDetailImg" style="width:100%;border-radius:20px;display:block;" src="" alt="">
-                <button class="download-btn" onclick="downloadHistImage()">⬇️ Télécharger</button>
+        <div class="progress-container" id="progress-area">
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="bar"></div>
             </div>
-            <div class="caption-box">
-                <div class="caption-text" id="histFbText"></div>
-                <button class="copy-btn" onclick="copyText('histFbText', this)">Copier</button>
-            </div>
-            <button onclick="republishHistoryPost()" class="btn-primary" style="background:#25D366;color:#000;font-weight:700;">
-                🔄 Republier ce post en 1 clic
-            </button>
-            <p id="republish-status" style="font-size:13.5px;text-align:center;margin-top:12px;font-weight:600;"></p>
+            <div class="progress-status" id="status-text">Préparation de l'image...</div>
         </div>
+
+        <div class="error-message" id="error-block"></div>
     </div>
 
+    <div class="card" id="result-card">
+        <div class="step-title"><i class="fas fa-check-circle"></i> Rendu Final Créé</div>
+        
+        <div class="result-image-box">
+            <img id="final-image" src="" alt="Rendu final PubliChef">
+        </div>
+
+        <div class="step-title"><i class="fas fa-align-left"></i> Légende Pro</div>
+        <div class="output-text-area" id="final-text"></div>
+
+        <button class="btn-copy" onclick="copyCaption()">
+            <i class="far fa-copy"></i> Copier le texte et les hashtags
+        </button>
+        
+        <button class="btn-generate" style="margin-top: 15px; background: #262626; color: #fff; border: 1px solid var(--border-color); box-shadow: none;" onclick="resetStudio()">
+            <i class="fas fa-redo"></i> Nouveau plat
+        </button>
+    </div>
 </div>
 
-<nav>
-    <button class="nav-btn active" id="nav0" onclick="goCapture()">📸</button>
-    <button class="nav-btn" id="nav1" onclick="goHistory()">🗂️</button>
-</nav>
-
 <script>
-    let dishFile = null, envFile = null, isGenerating = false, selectedDecor = 'salle';
-    let savedDecors = {}, modifyingDecor = null, currentHistoryPost = null;
+    // Gestion des aperçus d'images pour iPhone
+    document.getElementById('file-dish').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                document.getElementById('prev-dish').src = event.target.result;
+                document.getElementById('prev-dish').style.display = 'block';
+                document.getElementById('icon-dish').style.display = 'none';
+                document.getElementById('text-dish').style.display = 'none';
+                document.getElementById('drop-zone-dish').classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 
-    async function loadSavedDecors() {
+    // Chargement dynamique des décors configurés dans l'application
+    async function loadDecors() {
         try {
             const res = await fetch('/get_decors');
-            savedDecors = await res.json();
-            ['salle', 'terrasse'].forEach(n => {
-                if (savedDecors[n]) {
-                    document.getElementById('decor-preview-' + n).style.display = 'block';
-                    document.getElementById('decor-placeholder-' + n).style.display = 'none';
-                    document.getElementById('decor-img-' + n).src = savedDecors[n];
-                }
-            });
-            checkReady();
-        } catch(e) {}
-    }
-
-    function modifyDecor(event, decorName) {
-        event.stopPropagation();
-        modifyingDecor = decorName;
-        document.getElementById('decorModifyInput').click();
-    }
-
-    document.getElementById('decorModifyInput').addEventListener('change', async function() {
-        if (!this.files[0] || !modifyingDecor) return;
-        const formData = new FormData();
-        formData.append('image', this.files[0]);
-        try {
-            const res = await fetch('/save_decor/' + modifyingDecor, { method: 'POST', body: formData });
             const data = await res.json();
-            savedDecors = data.decors;
-            loadSavedDecors();
-        } catch(e) {}
-        this.value = '';
-        modifyingDecor = null;
-    });
-
-    document.getElementById('dishInput').addEventListener('change', function() {
-        if (this.files[0]) {
-            dishFile = this.files[0];
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('dishPreview').src = e.target.result;
-                document.getElementById('dishCard').classList.add('has-image');
-            };
-            reader.readAsDataURL(dishFile);
-            document.getElementById('errorBlock').style.display = 'none';
-            checkReady();
-        }
-    });
-
-    document.getElementById('envInput').addEventListener('change', function() {
-        if (this.files[0]) {
-            envFile = this.files[0];
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('envPreview').src = e.target.result;
-                document.getElementById('envCard').classList.add('has-image');
-            };
-            reader.readAsDataURL(envFile);
-        }
-    });
-
-    function selectDecor(el) {
-        if (el.classList.contains('locked')) return;
-        document.querySelectorAll('.decor-option').forEach(d => d.classList.remove('selected'));
-        el.classList.add('selected');
-        selectedDecor = el.dataset.decor;
-        checkReady();
-    }
-
-    function checkReady() {
-        document.getElementById('btnGenerate').disabled = !dishFile;
-    }
-
-    async function startGeneration() {
-        if (isGenerating) { showScreen('loading'); setActiveNav(-1); return; }
-        document.getElementById('errorBlock').style.display = 'none';
-        if (!dishFile) return;
-
-        isGenerating = true;
-        document.getElementById('generatingBadge').classList.add('visible');
-        document.getElementById('dot1').className = "step-dot done";
-        document.getElementById('dot2').className = "step-dot active";
-        document.getElementById('dot3').className = "step-dot";
-        showScreen('loading');
-        setActiveNav(-1);
-
-        const pb = document.getElementById('progressBar');
-        const phaseText = document.getElementById('loadingPhaseText');
-        let progress = 0;
-        pb.style.width = '0%';
-
-        phaseText.innerText = "Étape 1 : Sublimation et reliefs culinaires...";
-        const pInterval = setInterval(() => {
-            if (progress < 35) { progress += 2; pb.style.width = progress + '%'; }
-        }, 150);
-
-        setTimeout(() => {
-            if (progress < 70) {
-                phaseText.innerText = "Étape 2 : Fusion de l'éclairage et intégration au décor...";
-                const pInterval2 = setInterval(() => {
-                    if (progress < 75) { progress += 1; pb.style.width = progress + '%'; }
-                    else clearInterval(pInterval2);
-                }, 200);
+            const select = document.getElementById('decor-select');
+            if (data.decors && data.decors.length > 0) {
+                select.innerHTML = '';
+                data.decors.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = `Ambiance : ${d.charAt(0).toUpperCase() + d.slice(1)}`;
+                    select.appendChild(opt);
+                });
             }
-        }, 2000);
+        } catch(e) { console.log("Sélection par défaut conservée"); }
+    }
+    window.addEventListener('DOMContentLoaded', loadDecors);
 
-        setTimeout(() => {
-            phaseText.innerText = "Étape 3 : Rédaction des légendes Meta unifiées...";
-            if (progress < 85) { progress = 85; pb.style.width = '85%'; }
-        }, 5000);
+    // Algorithme de génération synchrone robuste
+    async function startGeneration() {
+        const fileInput = document.getElementById('file-dish');
+        const decorSelect = document.getElementById('decor-select');
+        const btn = document.getElementById('btn-submit');
+        const progressArea = document.getElementById('progress-area');
+        const progressBar = document.getElementById('bar');
+        const statusText = document.getElementById('status-text');
+        const errorBlock = document.getElementById('error-block');
+
+        if (!fileInput.files[0]) {
+            errorBlock.textContent = "S'il vous plaît, ajoutez une photo de votre plat avant de lancer.";
+            errorBlock.style.display = 'block';
+            return;
+        }
+
+        // Verrouillage de sécurité de l'interface
+        btn.disabled = true;
+        errorBlock.style.display = 'none';
+        progressArea.style.display = 'block';
+        
+        // Séquence animée synchronisée sur la vitesse de Gemini 2.5
+        progressBar.style.width = '15%';
+        statusText.textContent = "Analyse culinaire du plat...";
 
         const formData = new FormData();
-        formData.append('dish', dishFile);
-        if (envFile) formData.append('environment', envFile);
-        formData.append('decor', selectedDecor);
+        formData.append('dish_image', fileInput.files[0]);
+        formData.append('decor_type', decorSelect.value);
+
+        // Simulation d'avancée fluide pendant le calcul réseau
+        let progress = 15;
+        const interval = setInterval(() => {
+            if (progress < 85) {
+                progress += 5;
+                progressBar.style.width = progress + '%';
+                if (progress === 40) statusText.textContent = "Détourage de l'assiette par l'IA...";
+                if (progress === 65) statusText.textContent = "Incrustation dans le décor et gestion des ombres...";
+            }
+        }, 800);
 
         try {
-            const response = await fetch('/generate_v2', { method: 'POST', body: formData });
-            const data = await response.json();
-            clearInterval(pInterval);
-            isGenerating = false;
-            document.getElementById('generatingBadge').classList.remove('visible');
+            const response = await fetch('/generate_v2', {
+                method: 'POST',
+                body: formData
+            });
 
-            if (!response.ok || data.error) throw new Error(data.error || "Erreur serveur");
+            clearInterval(interval);
 
-            pb.style.width = '100%';
-            phaseText.innerText = "Post finalisé !";
+            if (!response.ok) {
+                throw new Error("Le serveur Gemini rencontre une surcharge temporaire.");
+            }
+
+            const result = await response.json();
+            
+            progressBar.style.width = '100%';
+            statusText.textContent = "Création de la légende terminée !";
 
             setTimeout(() => {
-                document.getElementById('resultImage').src = data.image;
-                document.getElementById('fbText').textContent = data.facebook;
-                document.getElementById('dot1').className = "step-dot done";
-                document.getElementById('dot2').className = "step-dot done";
-                document.getElementById('dot3').className = "step-dot done";
-                showScreen('result');
-                setActiveNav(-1);
+                // Affichage du panneau de résultat final
+                document.getElementById('input-card').style.display = 'none';
+                document.getElementById('result-card').style.display = 'block';
+                
+                // Injection des données reçues du backend
+                document.getElementById('final-image').src = result.image_url + '?t=' + new Date().getTime();
+                document.getElementById('final-text').textContent = result.caption + "\n\n" + result.hashtags;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 500);
 
-        } catch(e) {
-            clearInterval(pInterval);
-            isGenerating = false;
-            document.getElementById('generatingBadge').classList.remove('visible');
-            showScreen('capture');
-            setActiveNav(0);
-            document.getElementById('errorBlock').style.display = 'block';
-            document.getElementById('dot1').className = "step-dot active";
-            document.getElementById('dot2').className = "step-dot";
-            document.getElementById('dot3').className = "step-dot";
+        } catch (err) {
+            clearInterval(interval);
+            progressBar.style.width = '0%';
+            progressArea.style.display = 'none';
+            btn.disabled = false;
+            errorBlock.textContent = "Une lenteur réseau est détectée. Réessayez dans un instant avec une photo plus légère.";
+            errorBlock.style.display = 'block';
         }
     }
 
-    function downloadImage() {
-        const img = document.getElementById('resultImage');
-        if (!img.src) return;
-        const a = document.createElement('a');
-        a.href = img.src;
-        a.download = 'publichef_' + new Date().toISOString().slice(0,10) + '.jpg';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function downloadHistImage() {
-        const img = document.getElementById('histDetailImg');
-        if (!img.src) return;
-        const a = document.createElement('a');
-        a.href = img.src;
-        a.download = 'publichef_history_' + new Date().toISOString().slice(0,10) + '.jpg';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function publishPost() {
-        const statusTxt = document.getElementById('publish-status');
-        statusTxt.style.color = 'var(--gold)';
-        statusTxt.innerText = "Envoi en cours...";
-        fetch('/publish_to_socials', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ caption_fb: document.getElementById('fbText').textContent })
-        }).then(r => r.json()).then(data => {
-            statusTxt.style.color = data.success ? 'var(--success)' : 'var(--error)';
-            statusTxt.innerText = data.success ? "🎉 En ligne sur Facebook & Instagram !" : "❌ " + data.error;
+    function copyCaption() {
+        const text = document.getElementById('final-text').textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btnCopy = document.querySelector('.btn-copy');
+            const originalText = btnCopy.innerHTML;
+            btnCopy.innerHTML = '<i class="fas fa-check"></i> Texte copié !';
+            setTimeout(() => { btnCopy.innerHTML = originalText; }, 2000);
         });
     }
 
-    async function loadHistory() {
-        const grid = document.getElementById('historyGrid');
-        document.getElementById('historyDetail').style.display = 'none';
-        grid.style.display = 'grid';
-        grid.innerHTML = '<div style="color:var(--gray);grid-column:span 2;text-align:center;padding:40px;">Chargement...</div>';
-        try {
-            const res = await fetch('/history_data');
-            const posts = await res.json();
-            window._historyPosts = posts;
-            if (!posts.length) { grid.innerHTML = '<div style="color:var(--gray);grid-column:span 2;text-align:center;padding:40px;">Aucune création</div>'; return; }
-            grid.innerHTML = posts.map(p =>
-                '<div class="history-card" onclick="openHistDetail(\'' + p.id + '\')">' +
-                '<img src="' + p.image_data + '" alt="">' +
-                '<div class="history-card-date">' + p.date + '</div></div>'
-            ).join('');
-        } catch(e) {}
+    function resetStudio() {
+        document.getElementById('file-dish').value = '';
+        document.getElementById('prev-dish').style.display = 'none';
+        document.getElementById('icon-dish').style.display = 'block';
+        document.getElementById('text-dish').style.display = 'block';
+        document.getElementById('drop-zone-dish').classList.remove('has-image');
+        document.getElementById('progress-area').style.display = 'none';
+        document.getElementById('bar').style.width = '0%';
+        document.getElementById('btn-submit').disabled = false;
+        document.getElementById('result-card').style.display = 'none';
+        document.getElementById('input-card').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
-    function openHistDetail(id) {
-        const post = window._historyPosts.find(p => p.id === id);
-        currentHistoryPost = post;
-        document.getElementById('historyGrid').style.display = 'none';
-        document.getElementById('historyDetail').style.display = 'block';
-        document.getElementById('histDetailImg').src = post.image_data;
-        document.getElementById('histFbText').textContent = post.facebook;
-        document.getElementById('republish-status').innerText = '';
-    }
-
-    function closeHistDetail() {
-        document.getElementById('historyDetail').style.display = 'none';
-        document.getElementById('historyGrid').style.display = 'grid';
-    }
-
-    function republishHistoryPost() {
-        if (!currentHistoryPost) return;
-        const statusTxt = document.getElementById('republish-status');
-        statusTxt.style.color = 'var(--gold)';
-        statusTxt.innerText = "Envoi...";
-        fetch('/publish_to_socials', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ caption_fb: document.getElementById('histFbText').textContent })
-        }).then(r => r.json()).then(data => {
-            statusTxt.style.color = data.success ? 'var(--success)' : 'var(--error)';
-            statusTxt.innerText = data.success ? "🎉 Reposté !" : "❌ " + data.error;
-        });
-    }
-
-    function showScreen(name) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById('screen-' + name).classList.add('active');
-    }
-
-    function goCapture() {
-        if (isGenerating) { showScreen('loading'); setActiveNav(-1); return; }
-        showScreen('capture'); setActiveNav(0);
-    }
-
-    function goHistory() { showScreen('history'); setActiveNav(1); loadHistory(); }
-
-    function setActiveNav(idx) {
-        document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
-    }
-
-    function toggleEdit(id, btn) {
-        const el = document.getElementById(id);
-        if (el.contentEditable === 'true') { el.contentEditable = 'false'; btn.textContent = 'Modifier'; btn.classList.remove('editing'); }
-        else { el.contentEditable = 'true'; el.focus(); btn.textContent = 'OK'; btn.classList.add('editing'); }
-    }
-
-    function copyText(id, btn) {
-        navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
-            btn.textContent = 'Copié !'; btn.classList.add('copied');
-            setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
-        });
-    }
-
-    function resetApp() {
-        dishFile = null; envFile = null;
-        document.getElementById('dishInput').value = '';
-        document.getElementById('envInput').value = '';
-        document.getElementById('dishCard').classList.remove('has-image');
-        document.getElementById('envCard').classList.remove('has-image');
-        document.getElementById('publish-status').innerText = '';
-        document.getElementById('errorBlock').style.display = 'none';
-        document.getElementById('dot1').className = "step-dot active";
-        document.getElementById('dot2').className = "step-dot";
-        document.getElementById('dot3').className = "step-dot";
-        showScreen('capture'); setActiveNav(0);
-    }
-
-    document.addEventListener('DOMContentLoaded', loadSavedDecors);
 </script>
+
 </body>
 </html>
