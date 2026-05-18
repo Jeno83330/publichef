@@ -1,70 +1,87 @@
+"""
+gemini_engine.py — PubliChef V2
+"""
+
 import os
-from genai import Client
-from genai import types
+import io
+from pathlib import Path
+from PIL import Image
+from google import genai
+from google.genai import types
+
 
 class GeminiEngine:
+
     def __init__(self):
-        self.client = Client()
-        self.model = "gemini-2.5-flash"
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise EnvironmentError("GEMINI_API_KEY missing from .env")
+        self.client = genai.Client(api_key=api_key)
 
-    def compose_dish_in_environment(self, dish_path, env_path):
-        from PIL import Image
-        import io
+    def compose_dish_in_environment(self, dish_path: Path, environment_path: Path) -> Path:
 
-        print(f"[IMAGE ENGINE 2.5] Traitement avec le modèle : {self.model}")
-        
+        output_dir = dish_path.parent.parent / "composed"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"final_{dish_path.stem}.jpg"
+
         dish_img = Image.open(dish_path)
-        env_img = Image.open(env_path)
+        env_img = Image.open(environment_path)
 
-        prompt = (
-            "Prends le plat de la première image, détoure-le proprement sans aucun résidu, "
-            "et place-le de manière réaliste au centre sur la table de la deuxième image. "
-            "Ajuste l'ombre sous l'assiette et la perspective à 45 degrés pour une intégration parfaite. "
-            "Renvoie uniquement l'image finale combinée au format JPEG."
+        if dish_img.mode != "RGBA":
+            dish_img = dish_img.convert("RGBA")
+        if env_img.mode != "RGB":
+            env_img = env_img.convert("RGB")
+
+        MAX_SIZE = (900, 900)
+        dish_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
+        env_img.thumbnail(MAX_SIZE, Image.Resampling.LANCZOS)
+
+        compose_prompt = (
+            "You are an expert digital compositor and professional food photographer. "
+            "I have provided two images: 1) A main dish plate, and 2) A restaurant environment background. "
+            "YOUR MISSION: Insert the dish into the environment photo with perfect geometric and physical realism. "
+            "1. GEOMETRY: Analyze the perspective and orientation of the table. "
+            "The plate MUST rest flat ON the table. NO floating, NO gap. "
+            "Scale the plate correctly relative to the table size. "
+            "2. LIGHTING: Match the restaurant lighting. Add soft shadow under the plate. "
+            "3. FOOD QUALITY: Enhance food colors. Sharp dish, soft bokeh background. "
+            "Return ONLY the final composited JPEG image. No text, no watermark."
         )
 
         try:
             response = self.client.models.generate_content(
-                model=self.model,
-                contents=[dish_img, env_img, prompt],
+                model="gemini-3-pro-image-preview",
+                contents=[compose_prompt, dish_img, env_img],
                 config=types.GenerateContentConfig(
-                    mime_type="image/jpeg"
+                    response_modalities=["IMAGE", "TEXT"],
+                    temperature=0.4
                 )
             )
-            
-            output_path = os.path.dirname(dish_path) + "/last_composed.jpg"
-            
-            # Technique de secours universelle : analyse de l'objet response complet
-            # 1. Tentative par les octets directs du modèle 2.5
-            if hasattr(response, 'generated_bytes') and response.generated_bytes:
-                with open(output_path, "wb") as f_out:
-                    f_out.write(response.generated_bytes)
+            print("[GEMINI] Modele: gemini-3-pro-image-preview")
+        except Exception as e:
+            if any(x in str(e) for x in ["503", "UNAVAILABLE", "high demand", "overloaded"]):
+                print("[GEMINI] Fallback sur gemini-2.5-flash-image")
+                response = self.client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=[compose_prompt, dish_img, env_img],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE", "TEXT"],
+                        temperature=0.4
+                    )
+                )
+            else:
+                raise
+
+        del dish_img
+        del env_img
+
+        for part in response.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.data:
+                input_buffer = io.BytesIO(part.inline_data.data)
+                with Image.open(input_buffer) as img:
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+                    img.save(output_path, "JPEG", quality=88)
                 return output_path
 
-            # 2. Extraction via les structures de texte ou d'inline data de secours
-            if response.candidates and response.candidates[0].content.parts:
-                part = response.candidates[0].content.parts[0]
-                
-                # Récupération des données binaires peu importe l'attribut nommé par Google
-                data = None
-                for attr in ['inline_data', 'bytes', 'data']:
-                    if hasattr(part, attr) and getattr(part, attr):
-                        val = getattr(part, attr)
-                        data = val.data if hasattr(val, 'data') else val
-                        break
-                
-                if data and isinstance(data, bytes):
-                    with open(output_path, "wb") as f_out:
-                        f_out.write(data)
-                    return output_path
-
-            # 3. Si Google renvoie exceptionnellement un format structuré par erreur, on extrait le texte brut
-            if response.text:
-                print("[WARN] Données reçues sous forme de texte, tentative de conversion...")
-                raise Exception("L'API a renvoyé du texte au lieu d'une image JPEG.")
-                
-            raise Exception("Aucun flux binaire d'image détecté dans la réponse Gemini 2.5.")
-            
-        except Exception as e:
-            print(f"[CRITICAL IMAGE ENGINE 2.5] Échec : {str(e)}")
-            raise e
+        raise Exception("Gemini did not return an image")
