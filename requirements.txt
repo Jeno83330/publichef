@@ -4,3 +4,4 @@ requests
 python-dotenv
 google-genai
 gunicorn==21.2.0
+anthropic
