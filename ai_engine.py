@@ -15,33 +15,43 @@ class AIEngine:
                 b64_data = b64_data.split(",")[1]
             raw_bytes = base64.b64decode(b64_data)
             
-            print("[AI ENGINE PRO] Analyse de la photo pour une description unique...")
-            
+            print("[AI ENGINE PRO] Analyse technique de la photo...")
             prompt = (
-                "Tu es un chef cuisinier étoilé et un expert en marketing gastronomique. "
-                "Analyse cette photo de plat de restaurant de manière approfondie. "
-                "Repère les ingrédients clés, les textures (croustillant, fondant, caramélisé), la cuisson et la présentation. "
-                "Rédige une suggestion de présentation et de saveurs en 3-4 phrases pour Facebook, en adoptant le ton d'un restaurateur passionné. "
-                "Ne fais PAS de template générique. Parle de CE PLAT spécifique. "
-                "Utilise un vocabulaire riche et évocateur qui donne immédiatement faim. Ajoute 2-3 émojis pertinents."
+                "Tu es un critique culinaire factuel. Analyse cette photo. "
+                "Liste uniquement les ingrédients clés, les textures visibles, le type de viande ou poisson, la garniture, et la sauce. "
+                "Ne fais aucune phrase poétique, donne juste les faits précis."
             )
-            
             response = self.client.models.generate_content(
                 model='gemini-2.5-pro',
-                contents=[
-                    types.Part.from_bytes(data=raw_bytes, mime_type="image/jpeg"),
-                    prompt
-                ]
+                contents=[types.Part.from_bytes(data=raw_bytes, mime_type="image/jpeg"), prompt]
             )
             return response.text.strip()
         except Exception as e:
             print(f"\n[AI ENGINE ERROR] : {traceback.format_exc()}")
-            return "Une suggestion exclusive à découvrir aujourd'hui ! Notre équipe a hâte de vous faire partager cette explosion de saveurs artisanales."
+            return "Plat de chef, ingrédients frais de saison."
 
-    def generate_hashtags(self, description):
+    def generate_facebook_caption(self, description):
         try:
-            prompt = f"En t'appuyant sur cette description de plat : '{description}', génère une seule ligne contenant entre 6 et 8 hashtags culinaires ciblés, haut de gamme et séparés par des espaces."
+            print("[AI ENGINE PRO] Rédaction du post Facebook gourmand...")
+            prompt = (
+                f"Tu es un chef cuisinier étoilé et un expert en marketing gastronomique. "
+                f"Rédige un post Facebook de 3 à 4 lignes basé EXACTEMENT sur ces éléments du plat : '{description}'.\n"
+                f"CONSIGNES STRICTES :\n"
+                f"- Ton direct, gourmand, passionné, qui donne immédiatement faim.\n"
+                f"- Ne fais PAS de template générique (évite 'Voici le cœur de notre maison...'). Parle de CE PLAT précis.\n"
+                f"- 2 ou 3 émojis maximum.\n"
+                f"- AUCUN numéro de téléphone, AUCUNE fausse adresse.\n"
+                f"- Termine par une courte phrase invitant à venir le déguster."
+            )
             response = self.client.models.generate_content(model='gemini-2.5-pro', contents=prompt)
             return response.text.strip()
         except Exception as e:
-            return "#restaurant #gastronomie #faitmaison #chef #suggestion"
+            return "Notre plat signature vous attend aujourd'hui. Venez découvrir l'explosion de saveurs imaginée par notre chef !"
+
+    def generate_hashtags(self, description):
+        try:
+            prompt = f"Génère une seule ligne contenant 5 ou 6 hashtags culinaires impactants liés à ces éléments : '{description}'. Sépare-les par des espaces."
+            response = self.client.models.generate_content(model='gemini-2.5-pro', contents=prompt)
+            return response.text.strip()
+        except Exception as e:
+            return "#Restaurant #FaitMaison #Gastronomie #Chef #Gourmandise"
