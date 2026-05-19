@@ -12,7 +12,7 @@ class GeminiEngine:
     def compose_dish_in_environment(self, dish_img_path, env_img_path):
         try:
             if not self.api_key:
-                print("[VISUAL ENGINE ERROR] Clé REMOVE_BG_API_KEY introuvable dans l'environnement.")
+                print("[VISUAL ENGINE ERROR] Clé REMOVE_BG_API_KEY introuvable.")
                 return str(dish_img_path)
 
             print("[VISUAL ENGINE PRO] 1. Envoi de l'image à l'API Remove.bg...")
@@ -35,7 +35,8 @@ class GeminiEngine:
             dish_cutout = Image.open(BytesIO(response.content)).convert("RGBA")
             
             with Image.open(env_img_path).convert("RGBA") as env:
-                target_width = int(env.width * 0.55)
+                # --- L'assiette passe à 75% de la largeur ---
+                target_width = int(env.width * 0.75) 
                 ratio = target_width / dish_cutout.width
                 target_height = int(dish_cutout.height * ratio)
                 dish_resized = dish_cutout.resize((target_width, target_height), Image.Resampling.LANCZOS)
@@ -53,7 +54,8 @@ class GeminiEngine:
                 shadow = shadow.filter(ImageFilter.GaussianBlur(radius=12))
                 
                 paste_x = (env.width - target_width) // 2
-                paste_y = int(env.height * 0.45)
+                # --- On la remonte légèrement (0.40 au lieu de 0.45) pour compenser la taille ---
+                paste_y = int(env.height * 0.40) 
                 
                 env.paste(shadow, (paste_x, paste_y + 15), shadow)
                 env.paste(dish_perspective, (paste_x, paste_y), dish_perspective)
