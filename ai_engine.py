@@ -1,8 +1,6 @@
 import os
 import base64
 import traceback
-from io import BytesIO
-from PIL import Image
 from google import genai
 from google.genai import types
 
@@ -13,11 +11,9 @@ class AIEngine:
 
     def describe_dish_from_bytes(self, b64_data):
         try:
-            # Conversion propre des données reçues du front-end
+            # Décodage binaire pur pour le nouveau SDK
             raw_bytes = base64.b64decode(b64_data)
-            
-            # Utilisation directe du nouveau SDK avec gemini-2.5-pro
-            print("[AI ENGINE] Analyse du plat avec gemini-2.5-pro...")
+            print("[AI ENGINE PRO] Analyse de la texture et des cuissons...")
             
             prompt = (
                 "Tu es un chef cuisinier étoilé et un expert en marketing gastronomique. "
@@ -26,7 +22,7 @@ class AIEngine:
                 "Rédige une synthèse courte mais extrêmement gourmande qui met en valeur le savoir-faire artisanal du plat."
             )
             
-            # Envoi au format attendu par le SDK 2026
+            # Envoi multi-modal structuré au format 2026
             response = self.client.models.generate_content(
                 model='gemini-2.5-pro',
                 contents=[
@@ -44,11 +40,11 @@ class AIEngine:
             prompt = f"En t'appuyant sur cette analyse de plat : '{description}', rédige une légende publicitaire d'élite pour le compte Facebook d'un restaurant de qualité.\n\n" \
                      f"CONSIGNES STRICTES :\n" \
                      f"- Rédige un texte captivant et chaleureux de 3 à 4 phrases maximum.\n" \
-                     f"- Adopte le ton d'un restaurateur passionné, fier de ses produits frais et du fait maison.\n" \
-                     f"- Utilise un vocabulaire riche et évocateur qui donne immédiatement faim (ex: 'juste saisi', 'explosion de saveurs', 'gourmandise absolue').\n" \
-                     f"- Intègre des émojis élégants et bien placés pour aérer le texte.\n" \
-                     f"- NE parle JAMAIS de prix, de réservations, de lien ou de numéro de téléphone dans ton texte.\n" \
-                     f"- Va droit au but, élimine les formules robotiques comme 'Bienvenue chez nous'."
+                     f"- Adopte le ton d'un restaurateur passionné.\n" \
+                     f"- Utilise un vocabulaire riche et évocateur qui donne immédiatement faim.\n" \
+                     f"- Intègre des émojis élégants.\n" \
+                     f"- NE parle JAMAIS de prix, de réservations, de lien ou de numéro de téléphone.\n" \
+                     f"- Va droit au but."
             
             response = self.client.models.generate_content(
                 model='gemini-2.5-pro',
