@@ -11,7 +11,10 @@ class AIEngine:
 
     def describe_dish_from_bytes(self, b64_data):
         try:
-            # Décodage binaire pur pour le nouveau SDK
+            # 🧹 CORRECTIF : On nettoie l'étiquette Safari "data:image/jpeg;base64,"
+            if "," in b64_data:
+                b64_data = b64_data.split(",")[1]
+                
             raw_bytes = base64.b64decode(b64_data)
             print("[AI ENGINE PRO] Analyse de la texture et des cuissons...")
             
@@ -22,7 +25,6 @@ class AIEngine:
                 "Rédige une synthèse courte mais extrêmement gourmande qui met en valeur le savoir-faire artisanal du plat."
             )
             
-            # Envoi multi-modal structuré au format 2026
             response = self.client.models.generate_content(
                 model='gemini-2.5-pro',
                 contents=[
