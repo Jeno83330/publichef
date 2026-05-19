@@ -4,4 +4,3 @@ google-genai
 pillow
 requests
 gunicorn
-rembg[cpu]
