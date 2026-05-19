@@ -46,7 +46,7 @@ class AIEngine:
             response = self.client.models.generate_content(model='gemini-2.5-pro', contents=prompt)
             return response.text.strip()
         except Exception as e:
-            return "Notre plat signature vous attend aujourd'hui. Venez découvrir l'explosion de saveurs imaginée par notre chef !"
+            return "Notre plat signature vous attend aujourd'hui. Venez découvrir l'explosion de saveurs imaginée par notre chef."
 
     def generate_hashtags(self, description):
         try:
