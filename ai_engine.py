@@ -6,7 +6,8 @@ from google.genai import types
 class AIEngine:
     def __init__(self):
         self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        self.model_name = 'gemini-1.5-pro'
+        # CORRECTION : L'appellation exacte exigée par les serveurs de Google
+        self.model_name = 'gemini-1.5-pro-latest'
         
         self.system_instruction = (
             "Tu es le community manager de L'Athelia Resto, situé dans la zone Athelia à La Ciotat. "
