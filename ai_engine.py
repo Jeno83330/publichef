@@ -6,8 +6,8 @@ from google.genai import types
 class AIEngine:
     def __init__(self):
         self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        # Le modèle Flash : rapide, efficace, et surtout débloqué sur ta clé
-        self.model_name = 'gemini-1.5-flash'
+        # LE BON MOTEUR ACTUEL : La génération 3 qui remplace l'ancienne version 1.5 supprimée
+        self.model_name = 'gemini-3-flash'
         
         self.system_instruction = (
             "Tu es le community manager de L'Athelia Resto, situé dans la zone Athelia à La Ciotat. "
