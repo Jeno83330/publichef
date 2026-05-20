@@ -1,57 +1,48 @@
 import os
 import base64
-import traceback
 from google import genai
-from google.genai import types
 
 class AIEngine:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY")
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        # Passage au moteur PRO pour l'analyse fine et l'écriture de qualité
+        self.model_name = 'gemini-1.5-pro'
+        
+        # Direction Artistique personnalisée 
+        self.system_instruction = (
+            "Tu es le community manager de L'Athelia Resto, situé dans la zone Athelia à La Ciotat. "
+            "Ton style est authentique, direct et chaleureux, parfait pour les travailleurs du coin à la pause déjeuner. "
+            "Règle absolue : n'utilise JAMAIS de clichés ridicules comme 'explosion de saveurs', 'régal pour les papilles' ou 'voyage culinaire'. "
+            "Parle de cuisine maison, de bons produits bruts et de la convivialité du lieu."
+        )
 
-    def describe_dish_from_bytes(self, b64_data):
-        try:
-            if "," in b64_data:
-                b64_data = b64_data.split(",")[1]
-            raw_bytes = base64.b64decode(b64_data)
-            
-            print("[AI ENGINE PRO] Analyse technique de la photo...")
-            prompt = (
-                "Tu es un critique culinaire factuel. Analyse cette photo. "
-                "Liste uniquement les ingrédients clés, les textures visibles, le type de viande ou poisson, la garniture, et la sauce. "
-                "Ne fais aucune phrase poétique, donne juste les faits précis."
-            )
-            response = self.client.models.generate_content(
-                model='gemini-2.5-pro',
-                contents=[types.Part.from_bytes(data=raw_bytes, mime_type="image/jpeg"), prompt]
-            )
-            return response.text.strip()
-        except Exception as e:
-            print(f"\n[AI ENGINE ERROR] : {traceback.format_exc()}")
-            return "Plat de chef, ingrédients frais de saison."
+    def describe_dish_from_bytes(self, image_b64):
+        image_bytes = base64.b64decode(image_b64)
+        prompt = "Analyse cette assiette avec l'œil d'un cuisinier. Quels sont les ingrédients, les textures et les cuissons visibles ?"
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[
+                {'mime_type': 'image/jpeg', 'data': image_bytes},
+                prompt
+            ],
+            config={'system_instruction': self.system_instruction, 'temperature': 0.7}
+        )
+        return response.text
 
     def generate_facebook_caption(self, description):
-        try:
-            print("[AI ENGINE PRO] Rédaction du post Facebook gourmand...")
-            prompt = (
-                f"Tu es un chef cuisinier étoilé et un expert en marketing gastronomique. "
-                f"Rédige un post Facebook de 3 à 4 lignes basé EXACTEMENT sur ces éléments du plat : '{description}'.\n"
-                f"CONSIGNES STRICTES :\n"
-                f"- Ton direct, gourmand, passionné, qui donne immédiatement faim.\n"
-                f"- Ne fais PAS de template générique (évite 'Voici le cœur de notre maison...'). Parle de CE PLAT précis.\n"
-                f"- 2 ou 3 émojis maximum.\n"
-                f"- AUCUN numéro de téléphone, AUCUNE fausse adresse.\n"
-                f"- Termine par une courte phrase invitant à venir le déguster."
-            )
-            response = self.client.models.generate_content(model='gemini-2.5-pro', contents=prompt)
-            return response.text.strip()
-        except Exception as e:
-            return "Notre plat signature vous attend aujourd'hui. Venez découvrir l'explosion de saveurs imaginée par notre chef."
+        prompt = f"Rédige le post de présentation de ce plat du jour à partir de ces éléments : {description}. Sois court, naturel et percutant. N'ajoute pas de numéro de téléphone ni de hashtags à la fin."
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config={'system_instruction': self.system_instruction, 'temperature': 0.8}
+        )
+        return response.text
 
     def generate_hashtags(self, description):
-        try:
-            prompt = f"Génère une seule ligne contenant 5 ou 6 hashtags culinaires impactants liés à ces éléments : '{description}'. Sépare-les par des espaces."
-            response = self.client.models.generate_content(model='gemini-2.5-pro', contents=prompt)
-            return response.text.strip()
-        except Exception as e:
-            return "#Restaurant #FaitMaison #Gastronomie #Chef #Gourmandise"
+        prompt = f"Génère 5 hashtags précis pour ce plat : {description}. Inclus obligatoirement #AtheliaResto et #LaCiotat. Renvoie juste les hashtags séparés par des espaces."
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config={'temperature': 0.2}
+        )
+        return response.text
