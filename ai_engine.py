@@ -1,12 +1,13 @@
 import os
 import base64
+from io import BytesIO
+from PIL import Image
 from google import genai
 from google.genai import types
 
 class AIEngine:
     def __init__(self):
         self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        # Le modèle ultra-rapide parfait pour ton compte Pro
         self.model_name = 'gemini-2.5-flash'
         
         self.system_instruction = (
@@ -16,14 +17,34 @@ class AIEngine:
             "Parle de cuisine maison, de bons produits bruts et de la convivialité du lieu."
         )
 
+    def _compress_image(self, image_bytes):
+        """Redimensionne et compresse l'image pour réduire drastiquement les coûts de l'API"""
+        img = Image.open(BytesIO(image_bytes))
+        
+        # Convertir en RGB si nécessaire (pour le format JPEG)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        # Redimensionner si l'image est immense (max 1024px de large ou de haut)
+        img.thumbnail((1024, 1024))
+        
+        # Sauvegarder avec une compression de 75%
+        output = BytesIO()
+        img.save(output, format="JPEG", quality=75)
+        return output.getvalue()
+
     def describe_dish_from_bytes(self, image_b64):
-        image_bytes = base64.b64decode(image_b64)
+        raw_bytes = base64.b64decode(image_b64)
+        
+        # Application de la compression économique
+        compressed_bytes = self._compress_image(raw_bytes)
+        
         prompt = "Analyse cette assiette avec l'œil d'un cuisinier. Quels sont les ingrédients, les textures et les cuissons visibles ?"
         
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
+                types.Part.from_bytes(data=compressed_bytes, mime_type='image/jpeg'),
                 prompt
             ],
             config=types.GenerateContentConfig(
